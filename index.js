@@ -9,7 +9,8 @@ const {
   ButtonBuilder, 
   ButtonStyle, 
   EmbedBuilder, 
-  ChannelType, 
+  ChannelType,
+  ActivityType,
   PermissionsBitField 
 } = require('discord.js');
 const express = require('express');
@@ -55,12 +56,16 @@ const commands = [
   new SlashCommandBuilder().setName('setinvite')
     .setDescription('Set your server invite link')
     .addStringOption(opt => opt.setName('invite').setDescription('Your server invite link').setRequired(true)),
+  // Add the /setstatus command to the commands array
+  new SlashCommandBuilder().setName('setstatus')
+    .setDescription('Set the bot\'s status (Owner only)')
+    .addStringOption(opt => opt.setName('status').setDescription('The status message').setRequired(true)),
 ];
 
 client.once('ready', async () => {
   console.log(`Logged in as ${client.user.tag}`);
   
-  client.user.setActivity('skyvps360.xyz $4 256GB KVM VPS', { type: 'WATCHING' });
+  client.user.setActivity('skyvps360.xyz $4 256GB KVM VPS', { type: ActivityType.Watching });
 
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
   await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
@@ -228,6 +233,36 @@ ${msg}`,
       }
       await Partner.findOneAndUpdate({ guildId }, { inviteLink: invite }, { upsert: true });
       return interaction.reply(`🔗 Invite link set to: ${invite}`);
+    }
+
+    // Fix the /setstatus command handler to avoid multiple interaction acknowledgments
+    if (interaction.commandName === 'setstatus') {
+      console.log(`Received /setstatus command from user: ${interaction.user.id}`);
+
+      // Check if the user is the bot owner
+      if (interaction.user.id !== '142025929454125056') {
+        console.log('Unauthorized user attempted to use /setstatus');
+        return interaction.reply({ content: '❌ You are not authorized to use this command.', ephemeral: true });
+      }
+
+      // Get the status message from the command options
+      const status = interaction.options.getString('status');
+      console.log(`Attempting to set bot status to: ${status}`);
+
+      try {
+        // Set the bot's status using the correct ActivityType
+        await client.user.setActivity(status, { type: ActivityType.Watching });
+        console.log('Bot status updated successfully');
+        
+        // Log the current activity to confirm
+        const currentActivity = client.user.presence.activities[0]?.name || 'No activity';
+        console.log(`Current bot activity: ${currentActivity}`);
+        
+        return interaction.reply({ content: `✅ Bot status updated to: **${status}**`, ephemeral: true });
+      } catch (error) {
+        console.error('Error updating bot status:', error);
+        return interaction.reply({ content: '❌ Failed to update bot status. Check the logs for details.', ephemeral: true });
+      }
     }
   } 
 
