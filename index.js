@@ -116,41 +116,38 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     if (interaction.commandName === 'register') {
-      const existing = await Partner.findOne({ guildId });
-      if (existing) {
-        return interaction.reply({ content: '❗ This server is already registered.', ephemeral: true });
-      }
+            const existing = await Partner.findOne({ guildId });
+            if (existing) {
+                return interaction.reply({ content: '❌ This server is already registered and cannot register again.', ephemeral: true });
+            }
 
-      await Partner.create({ guildId, guildName, approved: false, messagePending: false });
+            await Partner.create({ guildId, guildName, approved: false, messagePending: false, lastBump: new Date() });
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`approve_${guildId}`).setLabel('✅ Approve').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId(`decline_${guildId}`).setLabel('❌ Decline').setStyle(ButtonStyle.Danger),
-      );
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId(`approve_${guildId}`).setLabel('✅ Approve').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId(`decline_${guildId}`).setLabel('❌ Decline').setStyle(ButtonStyle.Danger),
+            );
 
-      try {
-        console.log('ADMIN_SERVER_ID:', process.env.ADMIN_SERVER_ID);
-        console.log('ADMIN_CHANNEL_ID:', process.env.ADMIN_CHANNEL_ID);
+            try {
+                const adminGuild = await client.guilds.fetch(process.env.ADMIN_SERVER_ID);
+                if (!adminGuild) {
+                    console.error('Admin guild not found. Check ADMIN_SERVER_ID in the .env file.');
+                    return;
+                }
 
-        const adminGuild = await client.guilds.fetch(process.env.ADMIN_SERVER_ID);
-        if (!adminGuild) {
-          console.error('Admin guild not found. Check ADMIN_SERVER_ID in the .env file.');
-          return;
+                const adminChannel = await adminGuild.channels.fetch(process.env.ADMIN_CHANNEL_ID);
+                if (!adminChannel) {
+                    console.error('Admin channel not found. Check ADMIN_CHANNEL_ID in the .env file.');
+                    return;
+                }
+
+                await adminChannel.send({ content: `📥 New registration from **${guildName}** (ID: ${guildId})`, components: [row] });
+                return interaction.reply('✅ Registration submitted. Please wait for approval.');
+            } catch (error) {
+                console.error('Error fetching guild or channel:', error);
+                return interaction.reply('❌ An error occurred while processing your request.');
+            }
         }
-
-        const adminChannel = await adminGuild.channels.fetch(process.env.ADMIN_CHANNEL_ID);
-        if (!adminChannel) {
-          console.error('Admin channel not found. Check ADMIN_CHANNEL_ID in the .env file.');
-          return;
-        }
-
-        await adminChannel.send({ content: `📥 New registration from **${guildName}** (ID: ${guildId})`, components: [row] });
-        return interaction.reply('✅ Registration submitted. Please wait for approval.');
-      } catch (error) {
-        console.error('Error fetching guild or channel:', error);
-        return interaction.reply('❌ An error occurred while processing your request.');
-      }
-    }
 
     if (interaction.commandName === 'setmessage') {
       const msg = interaction.options.getString('message');
@@ -236,29 +233,62 @@ ${msg}`,
 
   // Handle Button Interactions
   if (interaction.isButton()) {
-    const [action, targetId] = interaction.customId.split('_');
-    const partner = await Partner.findOne({ guildId: targetId });
-    if (!partner) return;
+        const [action, targetId] = interaction.customId.split('_');
 
-    if (action === 'approve') {
-      await Partner.findOneAndUpdate({ guildId: targetId }, { approved: true });
-      return interaction.reply({ content: `✅ Approved ${partner.guildName}` });
+        // Validate targetId
+        if (!targetId) {
+            return interaction.reply({ content: '❌ Invalid button interaction.', ephemeral: true });
+        }
+
+        const partner = await Partner.findOne({ guildId: targetId });
+
+        // Validate partner existence
+        if (!partner) {
+            return interaction.reply({ content: '❌ Partner data not found.', ephemeral: true });
+        }
+
+        try {
+            if (action === 'approve') {
+                await Partner.findOneAndUpdate({ guildId: targetId }, { approved: true });
+                await interaction.update({ content: `✅ Approved ${partner.guildName}`, components: [] });
+
+                // Send DM to the user who registered
+                const user = await client.users.fetch(interaction.user.id);
+                if (user) {
+                    await user.send(`✅ Your server **${partner.guildName}** has been approved for partnering!`);
+                }
+                return;
+            }
+
+            if (action === 'decline') {
+                await Partner.findOneAndDelete({ guildId: targetId });
+                await interaction.update({ content: `❌ Declined ${partner.guildName}`, components: [] });
+
+                // Send DM to the user who registered
+                const user = await client.users.fetch(interaction.user.id);
+                if (user) {
+                    await user.send(`❌ Your server **${partner.guildName}** has been declined for partnering.`);
+                }
+                return;
+            }
+
+            if (action === 'approve_msg') {
+                await Partner.findOneAndUpdate({ guildId: targetId }, { messagePending: false });
+                await interaction.update({ content: `✅ Approved message for ${partner.guildName}`, components: [] });
+                return;
+            }
+
+            if (action === 'decline_msg') {
+                await Partner.findOneAndUpdate({ guildId: targetId }, { messagePending: false, partnerMessage: null });
+                await interaction.update({ content: `❌ Declined message for ${partner.guildName}`, components: [] });
+                return;
+            }
+        } catch (error) {
+            console.error('Error handling button interaction:', error);
+            return interaction.reply({ content: '❌ An error occurred while processing the interaction.', ephemeral: true });
+        }
     }
-    if (action === 'decline') {
-      await Partner.findOneAndDelete({ guildId: targetId });
-      return interaction.reply({ content: `❌ Declined ${partner.guildName}` });
-    }
-    if (action === 'approve_msg') {
-      await Partner.findOneAndUpdate({ guildId: targetId }, { messagePending: false });
-      return interaction.reply({ content: `✅ Approved message for ${partner.guildName}` });
-    }
-    if (action === 'decline_msg') {
-      await Partner.findOneAndUpdate({ guildId: targetId }, { messagePending: false, partnerMessage: null });
-      return interaction.reply({ content: `❌ Declined message for ${partner.guildName}` });
-    }
-  }
 });
-
 
 // Express Setup (including the navbar for home and docs pages)
 const app = express();
@@ -272,129 +302,150 @@ mongoose.connection.on('error', (err) => {
   console.error('❌ MongoDB connection error:', err);
 });
 
+// Add error handling for the `/` route
 app.get('/', async (req, res) => {
-  const partners = await Partner.find({ 
-    approved: true,
-    partnerMessage: { $exists: true, $ne: null }
-  }, 'guildId guildName partnerMessage inviteLink').sort({ guildId: 1 });
-  const topId = process.env.PRIORITY_SERVER_ID;
-  const sortedPartners = partners.sort((a, b) => (a.guildId === topId ? -1 : b.guildId === topId ? 1 : 0));
-  // Update the website to display server invites
-  const cards = await Promise.all(sortedPartners.map(async (p) => {
-    let name = p.guildName || p.guildId;
-    const guild = await client.guilds.fetch(p.guildId);
-    const memberCount = guild.memberCount;
-    const iconURL = guild.iconURL();
-    const onlineMembers = guild.members.cache.filter(m => m.presence?.status === 'online').size;
-    const offlineMembers = guild.members.cache.filter(m => !m.presence || m.presence.status === 'offline').size;
-    const botCount = guild.members.cache.filter(m => m.user.bot).size;
+  try {
+    console.log('Fetching approved partners from the database...');
+    const partners = await Partner.find({ 
+      approved: true,
+      partnerMessage: { $exists: true, $ne: null }
+    }, 'guildId guildName partnerMessage inviteLink').sort({ guildId: 1 });
 
-    let invite = p.inviteLink ? `<a href="${p.inviteLink}" target="_blank" class="invite-button">Join Server</a>` : '<em>No invite set</em>';
-    return `<div class="partner-card">
-      <img src="${iconURL}" alt="Server Icon" style="width: 100px; height: 100px; border-radius: 50%; margin-bottom: 10px;">
-      <strong>${name}</strong>
-      <p>${p.partnerMessage}</p>
-      <p>Members: ${memberCount} 👤 | Online: ${onlineMembers} 🟢 | Offline: ${offlineMembers} 🔴 | Bots: ${botCount} 🤖</p>
-      ${invite}
-    </div>`;
-  }));
+    console.log('Sorting partners...');
+    const topId = process.env.PRIORITY_SERVER_ID;
+    const sortedPartners = partners.sort((a, b) => (a.guildId === topId ? -1 : b.guildId === topId ? 1 : 0));
 
-  res.send(`
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <title>Discord Partner Network</title>
-    <style>
-      body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background: #36393f;
-        color: #ffffff;
-        margin: 0;
-        padding: 20px;
-      }
-      .navbar {
-        background: #2c2f33;
-        padding: 15px 30px;
-        border-bottom: 1px solid #202225;
-        display: flex;
-        align-items: center;
-        gap: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-      }
-      .navbar a {
-        color: #ffffff;
-        text-decoration: none;
-        font-weight: 600;
-        padding: 8px 16px;
-        border-radius: 6px;
-        background: #36393f;
-        transition: all 0.2s ease;
-      }
-      .navbar a:hover {
-        background: #7289da;
-        transform: translateY(-2px);
-      }
-      .container {
-        max-width: 800px;
-        margin: 0 auto;
-      }
-      h1 {
-        color: #7289da;
-        text-align: center;
-        margin-bottom: 40px;
-        font-size: 2.5em;
-      }
-      .partner-card {
-        background: #2f3136;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        border: 1px solid #202225;
-        text-align: center;
-      }
-      .partner-card strong {
-        color: #7289da;
-        font-size: 1.2em;
-        display: block;
-        margin-bottom: 10px;
-      }
-      .partner-card p {
-        color: #dcddde;
-        line-height: 1.5;
-        margin: 0;
-      }
-      .invite-button {
-        display: inline-block;
-        padding: 10px 20px;
-        color: #ffffff;
-        background-color: #7289da;
-        text-decoration: none;
-        border-radius: 5px;
-        font-weight: bold;
-        transition: background-color 0.3s ease;
-        text-align: center;
-        margin: 10px auto;
-      }
+    console.log('Generating partner cards...');
+    const cards = await Promise.all(sortedPartners.map(async (p) => {
+      try {
+        console.log(`Fetching data for guild ID: ${p.guildId}`);
+        let name = p.guildName || p.guildId;
+        const guild = await client.guilds.fetch(p.guildId);
+        const memberCount = guild.memberCount;
+        const iconURL = guild.iconURL();
+        const onlineMembers = guild.members.cache.filter(m => m.presence?.status === 'online').size;
+        const offlineMembers = guild.members.cache.filter(m => !m.presence || m.presence.status === 'offline').size;
+        const botCount = guild.members.cache.filter(m => m.user.bot).size;
 
-      .invite-button:hover {
-        background-color: #5b6eae;
+        let invite = p.inviteLink ? `<a href="${p.inviteLink}" target="_blank" class="invite-button">Join Server</a>` : '<em>No invite set</em>';
+        return `<div class="partner-card">
+          <img src="${iconURL}" alt="Server Icon" style="width: 100px; height: 100px; border-radius: 50%; margin-bottom: 10px;">
+          <strong>${name}</strong>
+          <p>${p.partnerMessage}</p>
+          <p>Members: ${memberCount} 👤 | Online: ${onlineMembers} 🟢 | Offline: ${offlineMembers} 🔴 | Bots: ${botCount} 🤖</p>
+          ${invite}
+        </div>`;
+      } catch (error) {
+        console.error(`Error fetching data for guild ID ${p.guildId}:`, error);
+        return `<div class="partner-card">
+          <strong>${p.guildName || p.guildId}</strong>
+          <p>${p.partnerMessage}</p>
+          <p><em>Unable to fetch additional details.</em></p>
+        </div>`;
       }
-    </style>
-  </head>
-  <body>
-    <div class="navbar">
-      <a href="/">Home</a>
-      <a href="/docs">Docs</a>
-      <a href="$(DOMAIN)">SkyVPS360 - 256GB KVM VPS $4</a>
-      <a href="${getBotInviteUrl()}">Invite Bot</a> </div>
-    <div class="container">
-      <h1>🤝 Discord Partner Network</h1>
-      ${cards.join('')}
-    </div>
-  </body>
-  </html>
-  `);
+    }));
+
+    console.log('Rendering the page...');
+    res.send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Discord Partner Network</title>
+      <style>
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background: #36393f;
+          color: #ffffff;
+          margin: 0;
+          padding: 20px;
+        }
+        .navbar {
+          background: #2c2f33;
+          padding: 15px 30px;
+          border-bottom: 1px solid #202225;
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .navbar a {
+          color: #ffffff;
+          text-decoration: none;
+          font-weight: 600;
+          padding: 8px 16px;
+          border-radius: 6px;
+          background: #36393f;
+          transition: all 0.2s ease;
+        }
+        .navbar a:hover {
+          background: #7289da;
+          transform: translateY(-2px);
+        }
+        .container {
+          max-width: 800px;
+          margin: 0 auto;
+        }
+        h1 {
+          color: #7289da;
+          text-align: center;
+          margin-bottom: 40px;
+          font-size: 2.5em;
+        }
+        .partner-card {
+          background: #2f3136;
+          border-radius: 8px;
+          padding: 20px;
+          margin-bottom: 20px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+          border: 1px solid #202225;
+          text-align: center;
+        }
+        .partner-card strong {
+          color: #7289da;
+          font-size: 1.2em;
+          display: block;
+          margin-bottom: 10px;
+        }
+        .partner-card p {
+          color: #dcddde;
+          line-height: 1.5;
+          margin: 0;
+        }
+        .invite-button {
+          display: inline-block;
+          padding: 10px 20px;
+          color: #ffffff;
+          background-color: #7289da;
+          text-decoration: none;
+          border-radius: 5px;
+          font-weight: bold;
+          transition: background-color 0.3s ease;
+          text-align: center;
+          margin: 10px auto;
+        }
+
+        .invite-button:hover {
+          background-color: #5b6eae;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="navbar">
+        <a href="/">Home</a>
+        <a href="/docs">Docs</a>
+        <a href="$(DOMAIN)">SkyVPS360 - 256GB KVM VPS $4</a>
+        <a href="${getBotInviteUrl()}">Invite Bot</a> </div>
+      <div class="container">
+        <h1>🤝 SkyVPS360 Discord Partner Network</h1>
+        ${cards.join('')}
+      </div>
+    </body>
+    </html>
+    `);
+  } catch (error) {
+    console.error('❌ Error in the `/` route:', error);
+    res.status(500).send('❌ An error occurred while loading the page.');
+  }
 });
 
 app.get('/docs', (req, res) => {
@@ -459,8 +510,11 @@ app.get('/docs', (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🌐 Web dashboard running on http://localhost:${PORT}`));
 
+// Add error handling for Discord client login
+client.login(process.env.DISCORD_TOKEN).catch((error) => {
+  console.error('❌ Failed to log in to Discord:', error);
+});
+
 function getBotInviteUrl() {
   return `https://discord.com/api/oauth2/authorize?client_id=${client.user.id}&permissions=8&scope=bot%20applications.commands`;
 }
-
-client.login(process.env.DISCORD_TOKEN);
