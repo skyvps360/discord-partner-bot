@@ -728,77 +728,193 @@ app.get('/', async (req, res) => {
     <head>
       <title>Discord Partner Network</title>
       <style>
-        body {
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-          background: #36393f;
-          color: #ffffff;
-          margin: 0;
-          padding: 20px;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        :root {
+          --bg-primary: #1a1b1e;
+          --bg-secondary: #2c2d31;
+          --bg-tertiary: #18191c;
+          --accent: #5865f2;
+          --accent-hover: #4752c4;
+          --accent-light: #7289da;
+          --text-primary: #ffffff;
+          --text-secondary: #dcddde;
+          --text-muted: #72767d;
+          --success: #3ba55c;
+          --danger: #ed4245;
+          --warning: #faa61a;
+          --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+          --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+          --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+          --radius-sm: 6px;
+          --radius: 12px;
+          --radius-lg: 16px;
         }
+        
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+          background: var(--bg-primary);
+          color: var(--text-primary);
+          line-height: 1.6;
+          min-height: 100vh;
+          overflow-x: hidden;
+        }
+        
         .navbar {
-          background: #2c2f33;
-          padding: 15px 30px;
-          border-bottom: 1px solid #202225;
+          background: var(--bg-tertiary);
+          padding: 1rem 2rem;
+          position: sticky;
+          top: 0;
+          z-index: 100;
           display: flex;
           align-items: center;
-          gap: 20px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+          gap: 1.5rem;
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(10px);
+          border-bottom: 1px solid rgba(255,255,255,0.05);
         }
+        
         .navbar a {
-          color: #ffffff;
+          color: var(--text-primary);
           text-decoration: none;
-          font-weight: 600;
-          padding: 8px 16px;
-          border-radius: 6px;
-          background: #36393f;
-          transition: all 0.2s ease;
+          font-weight: 500;
+          padding: 0.5rem 1rem;
+          border-radius: var(--radius-sm);
+          background: var(--bg-secondary);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          overflow: hidden;
+          font-size: 0.95rem;
+          border: 1px solid rgba(255,255,255,0.05);
         }
+        
         .navbar a:hover {
-          background: #7289da;
+          background: var(--accent);
           transform: translateY(-2px);
+          border-color: var(--accent);
+          box-shadow: var(--shadow-lg);
         }
+        
+        .navbar a::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(
+            45deg,
+            transparent,
+            rgba(255, 255, 255, 0.1),
+            transparent
+          );
+          transform: translateX(-100%);
+          transition: transform 0.6s;
+        }
+        
+        .navbar a:hover::before {
+          transform: translateX(100%);
+        }
+        
         .container {
-          max-width: 800px;
+          max-width: 1200px;
           margin: 0 auto;
+          padding: 2rem;
+          animation: fadeIn 0.5s ease-out;
         }
+        
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
         h1 {
-          color: #7289da;
+          color: var(--accent-light);
           text-align: center;
-          margin-bottom: 40px;
+          margin-bottom: 3rem;
           font-size: 2.5em;
+          font-weight: 700;
+          position: relative;
+          padding-bottom: 1rem;
+        }
+        
+        h1::after {
+          content: "";
+          position: absolute;
+          bottom: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 60px;
+          height: 4px;
+          background: var(--accent);
+          border-radius: 2px;
+        }
+        
+        .page-header {
+          text-align: center;
+          margin-bottom: 3rem;
+          animation: slideDown 0.5s ease-out;
+        }
+        
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }      .partner-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
         gap: 2rem;
         margin-top: 2rem;
+        padding: 1rem;
+        animation: fadeIn 0.6s ease-out;
       }
 
       .partner-card {
         background: var(--bg-secondary);
-        border-radius: 16px;
+        border-radius: var(--radius-lg);
         padding: 2rem;
         text-align: center;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        border: 1px solid var(--bg-tertiary);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(255,255,255,0.05);
         position: relative;
         overflow: hidden;
+        backdrop-filter: blur(10px);
+        box-shadow: var(--shadow);
       }
 
       .partner-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--accent);
       }
 
       .partner-card::before {
         content: '';
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: var(--accent);
+        inset: 0;
+        background: linear-gradient(45deg, 
+          transparent 0%, 
+          rgba(88, 101, 242, 0.05) 50%,
+          transparent 100%);
         opacity: 0;
-        transition: opacity 0.2s ease;
+        transition: opacity 0.3s ease;
       }
 
       .partner-card:hover::before {
@@ -806,85 +922,178 @@ app.get('/', async (req, res) => {
       }
 
       .partner-card img {
-        width: 100px;
-        height: 100px;
+        width: 120px;
+        height: 120px;
         border-radius: 50%;
         margin-bottom: 1.5rem;
         border: 4px solid var(--bg-tertiary);
-        transition: transform 0.2s ease;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow);
       }
 
       .partner-card:hover img {
-        transform: scale(1.05);
+        transform: scale(1.05) rotate(5deg);
+        border-color: var(--accent);
+        box-shadow: 0 0 20px rgba(88, 101, 242, 0.3);
       }
 
       .partner-card strong {
-        color: var(--accent);
-        font-size: 1.4em;
+        color: var(--accent-light);
+        font-size: 1.5em;
         display: block;
         margin-bottom: 1rem;
-        font-weight: 600;
+        font-weight: 700;
+        letter-spacing: -0.02em;
       }
 
       .partner-card p {
         color: var(--text-secondary);
-        line-height: 1.6;
-        margin: 0 0 1rem;
+        line-height: 1.7;
+        margin: 0 0 1.5rem;
+        font-size: 0.95rem;
       }
 
       .partner-card .stats {
         display: flex;
         justify-content: center;
-        gap: 1rem;
+        gap: 0.75rem;
         flex-wrap: wrap;
-        margin: 1rem 0;
+        margin: 1.5rem 0;
         font-size: 0.9em;
       }
 
       .partner-card .stat {
         background: var(--bg-tertiary);
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
+        padding: 0.6rem 1rem;
+        border-radius: 30px;
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(255,255,255,0.05);
+      }
+
+      .partner-card:hover .stat {
+        transform: translateY(-2px);
+        background: var(--bg-primary);
       }
 
       .invite-button {
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         padding: 0.75rem 2rem;
         color: var(--text-primary);
-        background-color: var(--accent);
+        background: var(--accent);
         text-decoration: none;
-        border-radius: 8px;
+        border-radius: var(--radius);
         font-weight: 600;
-        transition: all 0.2s ease;
-        text-align: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         margin: 1rem auto 0;
         border: none;
         position: relative;
         overflow: hidden;
+        font-size: 0.95rem;
+        gap: 0.5rem;
       }
 
       .invite-button:hover {
-        background-color: var(--accent-hover);
+        background: var(--accent-hover);
         transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(88, 101, 242, 0.4);
       }
 
-      .invite-button::after {
+      .invite-button::before {
         content: '';
         position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 300%;
-        height: 300%;
-        background: rgba(255, 255, 255, 0.1);
-        transform: translate(-50%, -50%) rotate(35deg);
-        transition: transform 0.5s ease;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          45deg,
+          transparent,
+          rgba(255, 255, 255, 0.2),
+          transparent
+        );
+        transform: translateX(-100%);
+        transition: transform 0.6s;
       }
 
-      .invite-button:hover::after {
-        transform: translate(-50%, -50%) rotate(35deg) translateX(50%);
+      .invite-button:hover::before {
+        transform: translateX(100%);
+      }
+
+      .section {
+        background: var(--bg-secondary);
+        border-radius: var(--radius);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(255,255,255,0.05);
+        animation: slideUp 0.5s ease-out;
+      }
+
+      .alert {
+        background: rgba(88, 101, 242, 0.1);
+        border-left: 4px solid var(--accent);
+        padding: 1rem 1.5rem;
+        margin-bottom: 2rem;
+        border-radius: 0 var(--radius) var(--radius) 0;
+        animation: slideIn 0.5s ease-out;
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      @media (max-width: 768px) {
+        .partner-grid {
+          grid-template-columns: 1fr;
+          gap: 1.5rem;
+          padding: 0.5rem;
+        }
+
+        .partner-card {
+          padding: 1.5rem;
+        }
+
+        .partner-card img {
+          width: 100px;
+          height: 100px;
+        }
+
+        .navbar {
+          flex-direction: column;
+          padding: 1rem;
+        }
+
+        .navbar a {
+          width: 100%;
+          text-align: center;
+        }
+
+        h1 {
+          font-size: 2rem;
+        }
       }
 
       @media (max-width: 768px) {
