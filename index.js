@@ -23,6 +23,13 @@ require('dotenv').config();
 // MongoDB Setup (Removed deprecated options)
 mongoose.connect(process.env.MONGO_URI);
 
+const TopTierSlotSchema = new mongoose.Schema({
+  slotNumber: Number,
+  guildId: String,
+  guildName: String,
+});
+const TopTierSlot = mongoose.model('TopTierSlot', TopTierSlotSchema);
+
 const PartnerSchema = new mongoose.Schema({
   guildId: String,
   guildName: String,
@@ -34,7 +41,8 @@ const PartnerSchema = new mongoose.Schema({
   lastBump: Date,
   messagePending: Boolean,
   inviteLink: String,
-  partnerRoleId: String, // For role-based permissions
+  partnerRoleId: String,
+  isTopTier: Boolean
 });
 const Partner = mongoose.model('Partner', PartnerSchema);
 
@@ -61,17 +69,66 @@ const commands = [
     .addRoleOption(option => 
       option.setName('role')
         .setDescription('The role that can use partner bot commands')
+        .setRequired(true)),
+  new SlashCommandBuilder().setName('settopslot')
+    .setDescription('Set a server in a top tier slot (Owner only)')
+    .addStringOption(option => 
+      option.setName('serverid')
+        .setDescription('The server ID to add to the top slot')
         .setRequired(true))
+    .addIntegerOption(option =>
+      option.setName('slot')
+        .setDescription('The slot number (1-3)')
+        .setRequired(true)
+        .addChoices(
+          { name: 'Slot 1', value: 1 },
+          { name: 'Slot 2', value: 2 },
+          { name: 'Slot 3', value: 3 }
+        )),
+  new SlashCommandBuilder().setName('removetopslot')
+    .setDescription('Remove a server from a top tier slot (Owner only)')
+    .addIntegerOption(option =>
+      option.setName('slot')
+        .setDescription('The slot number to clear (1-3)')
+        .setRequired(true)
+        .addChoices(
+          { name: 'Slot 1', value: 1 },
+          { name: 'Slot 2', value: 2 },
+          { name: 'Slot 3', value: 3 }
+        ))
 ];
 
 client.once('ready', async () => {
-  console.log(`Logged in as ${client.user.tag}`);
-  
-  client.user.setActivity('skyvps360.xyz $4 256GB KVM VPS', { type: ActivityType.Watching });
-
-  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-  await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-  console.log('Slash commands registered.');
+  try {
+    console.log(`Logged in as ${client.user.tag}`);
+    
+    // Set bot's activity status
+    await client.user.setActivity('skyvps360.xyz $4 256GB KVM VPS', { type: ActivityType.Watching });
+    
+    // Create REST instance for command registration
+    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+    
+    console.log('Started refreshing application (/) commands...');
+    
+    // Register commands globally for all guilds
+    await rest.put(
+      Routes.applicationCommands(client.user.id),
+      { body: commands }
+    );
+    
+    // Get the number of servers the bot is in
+    const guildCount = client.guilds.cache.size;
+    
+    console.log(`✅ Successfully registered application commands globally`);
+    console.log(`🌐 Bot is active in ${guildCount} servers`);
+    
+    // Log all servers the bot is in
+    client.guilds.cache.forEach(guild => {
+      console.log(`📋 Server: ${guild.name} (${guild.id}) - Members: ${guild.memberCount}`);
+    });
+  } catch (error) {
+    console.error('❌ Error during startup:', error);
+  }
 });
 
 // Use a single merged event handler for all interaction types.
@@ -322,6 +379,59 @@ client.on('interactionCreate', async (interaction) => {
       );
 
       return interaction.reply({ content: `✅ Partner role set to ${role.name}. Members with this role can now use partner commands.`, ephemeral: true });
+    }
+
+    // Top tier slot commands
+    if (interaction.commandName === 'settopslot') {
+      if (interaction.user.id !== '142025929454125056') {
+        return interaction.reply({ content: '❌ Only the bot owner can manage top tier slots.', ephemeral: true });
+      }
+
+      const serverId = interaction.options.getString('serverid');
+      const slotNumber = interaction.options.getInteger('slot');
+
+      try {
+        const guild = await client.guilds.fetch(serverId);
+        if (!guild) {
+          return interaction.reply({ content: '❌ Could not find the specified server.', ephemeral: true });
+        }
+
+        const partner = await Partner.findOne({ guildId: serverId });
+        if (!partner || !partner.approved) {
+          return interaction.reply({ content: '❌ Server must be an approved partner first.', ephemeral: true });
+        }
+
+        await TopTierSlot.findOneAndUpdate(
+          { slotNumber },
+          { guildId: serverId, guildName: guild.name },
+          { upsert: true }
+        );
+
+        return interaction.reply({ content: `✅ Server "${guild.name}" has been set to top tier slot ${slotNumber}.`, ephemeral: true });
+      } catch (error) {
+        console.error('Error setting top tier slot:', error);
+        return interaction.reply({ content: '❌ An error occurred while setting the top tier slot.', ephemeral: true });
+      }
+    }
+
+    if (interaction.commandName === 'removetopslot') {
+      if (interaction.user.id !== '142025929454125056') {
+        return interaction.reply({ content: '❌ Only the bot owner can manage top tier slots.', ephemeral: true });
+      }
+
+      const slotNumber = interaction.options.getInteger('slot');
+
+      try {
+        const slot = await TopTierSlot.findOneAndDelete({ slotNumber });
+        if (!slot) {
+          return interaction.reply({ content: '❌ No server was assigned to this slot.', ephemeral: true });
+        }
+
+        return interaction.reply({ content: `✅ Removed server from top tier slot ${slotNumber}.`, ephemeral: true });
+      } catch (error) {
+        console.error('Error removing top tier slot:', error);
+        return interaction.reply({ content: '❌ An error occurred while removing the top tier slot.', ephemeral: true });
+      }
     }
   } 
 
@@ -677,48 +787,110 @@ mongoose.connection.on('error', (err) => {
 // Add error handling for the `/` route
 app.get('/', async (req, res) => {
   try {
-    console.log('Fetching approved partners from the database...');
+    console.log('Fetching top tier slots...');
+    const topTierSlots = await TopTierSlot.find({}).sort({ slotNumber: 1 });
+    
+    console.log('Fetching approved partners...');
     const partners = await Partner.find({ 
       approved: true,
       partnerMessage: { $exists: true, $ne: null }
-    }, 'guildId guildName partnerMessage inviteLink').sort({ guildId: 1 });
+    }, 'guildId guildName partnerMessage inviteLink');
 
-    console.log('Sorting partners...');
-    const topId = process.env.PRIORITY_SERVER_ID;
-    const sortedPartners = partners.sort((a, b) => (a.guildId === topId ? -1 : b.guildId === topId ? 1 : 0));
+    // Generate top tier slot cards
+    const topTierCards = await Promise.all(topTierSlots.map(async (slot) => {
+      if (!slot.guildId) {
+        return `<div class="top-tier-card empty">
+          <h3>Premium Slot ${slot.slotNumber}</h3>
+          <p>This premium advertising slot is available!</p>
+          <div class="cta-button">Get Your Slot Now</div>
+        </div>`;
+      }
 
-    console.log('Generating partner cards...');
-    const cards = await Promise.all(sortedPartners.map(async (p) => {
       try {
-        console.log(`Fetching data for guild ID: ${p.guildId}`);
-        let name = p.guildName || p.guildId;
-        const guild = await client.guilds.fetch(p.guildId);
-        const memberCount = guild.memberCount;
+        const guild = await client.guilds.fetch(slot.guildId);
         const iconURL = guild.iconURL();
+        const memberCount = guild.memberCount;
         const onlineMembers = guild.members.cache.filter(m => m.presence?.status === 'online').size;
-        const botCount = guild.members.cache.filter(m => m.user.bot).size;
-
-        let invite = p.inviteLink ? `<a href="${p.inviteLink}" target="_blank" class="invite-button">Join Server</a>` : '<em>No invite set</em>';
-        return `<div class="partner-card">
-          <img src="${iconURL || ''}" alt="Server Icon" onerror="this.src='https://discord.com/assets/6debd47ed13483642cf09e832ed0bc1b.png'">
-          <strong>${name}</strong>
-          <p>${p.partnerMessage}</p>
+        const partner = partners.find(p => p.guildId === slot.guildId);
+        
+        return `<div class="top-tier-card">
+          <div class="premium-badge">⭐ Premium Partner</div>
+          <img src="${iconURL || ''}" alt="${guild.name}" onerror="this.src='https://discord.com/assets/6debd47ed13483642cf09e832ed0bc1b.png'">
+          <h3>${guild.name}</h3>
+          <p>${partner?.partnerMessage || 'No message set'}</p>
           <div class="stats">
-            <span class="stat">👥 ${memberCount} Members</span>
-            <span class="stat">🟢 ${onlineMembers} Online</span>
-            <span class="stat">🤖 ${botCount} Bots</span>
+            <span class="stat">👥 ${memberCount}</span>
+            <span class="stat">🟢 ${onlineMembers}</span>
           </div>
-          ${invite}
+          ${partner?.inviteLink ? `<a href="${partner.inviteLink}" class="cta-button">Join Now</a>` : ''}
         </div>`;
       } catch (error) {
-        console.error(`Error fetching data for guild ID ${p.guildId}:`, error);
-        return `<div class="partner-card">
-          <strong>${p.guildName || p.guildId}</strong>
-          <p>${p.partnerMessage}</p>
-          <p><em>Unable to fetch additional details.</em></p>
+        console.error(`Error generating top tier card for ${slot.guildId}:`, error);
+        return `<div class="top-tier-card empty">
+          <h3>Premium Slot ${slot.slotNumber}</h3>
+          <p>This premium advertising slot is available!</p>
+          <div class="cta-button">Get Your Slot Now</div>
         </div>`;
       }
     }));
+
+    // Generate regular partner cards (excluding top tier slots and your server)
+    const regularPartners = partners.filter(p => 
+      !topTierSlots.some(slot => slot.guildId === p.guildId) && 
+      p.guildId !== process.env.PRIORITY_SERVER_ID
+    );
+
+    const regularCards = await Promise.all(regularPartners.map(async (p) => {
+      try {
+        const guild = await client.guilds.fetch(p.guildId);
+        const iconURL = guild.iconURL();
+        const memberCount = guild.memberCount;
+        const onlineMembers = guild.members.cache.filter(m => m.presence?.status === 'online').size;
+        const botCount = guild.members.cache.filter(m => m.user.bot).size;
+
+        return `<div class="partner-card">
+          <img src="${iconURL || ''}" alt="Server Icon" onerror="this.src='https://discord.com/assets/6debd47ed13483642cf09e832ed0bc1b.png'">
+          <strong>${guild.name}</strong>
+          <p>${p.partnerMessage}</p>
+          <div class="stats">
+            <span class="stat">👥 ${memberCount}</span>
+            <span class="stat">🟢 ${onlineMembers}</span>
+            <span class="stat">🤖 ${botCount}</span>
+          </div>
+          ${p.inviteLink ? `<a href="${p.inviteLink}" target="_blank" class="invite-button">Join Server</a>` : '<em>No invite set</em>'}
+        </div>`;
+      } catch (error) {
+        return `<div class="partner-card">
+          <strong>${p.guildName}</strong>
+          <p>${p.partnerMessage}</p>
+          <p><em>Unable to fetch details</em></p>
+        </div>`;
+      }
+    }));
+
+    // Generate your banner (priority server)
+    let priorityBanner = '';
+    if (process.env.PRIORITY_SERVER_ID) {
+      const priorityServer = partners.find(p => p.guildId === process.env.PRIORITY_SERVER_ID);
+      if (priorityServer) {
+        try {
+          const guild = await client.guilds.fetch(process.env.PRIORITY_SERVER_ID);
+          const iconURL = guild.iconURL();
+          priorityBanner = `<div class="priority-banner">
+            <div class="banner-content">
+              <img src="${iconURL || ''}" alt="Server Icon" onerror="this.src='https://discord.com/assets/6debd47ed13483642cf09e832ed0bc1b.png'">
+              <div class="banner-info">
+                <h2>${guild.name}</h2>
+                <p>${priorityServer.partnerMessage}</p>
+                ${priorityServer.inviteLink ? `<a href="${priorityServer.inviteLink}" target="_blank" class="cta-button">Join Now</a>` : ''}
+              </div>
+            </div>
+          </div>`;
+        } catch (error) {
+          console.error('Error generating priority banner:', error);
+        }
+      }
+    }
 
     const htmlTemplate = `
     <!DOCTYPE html>
@@ -887,23 +1059,132 @@ app.get('/', async (req, res) => {
           }
         }
 
-        @media (max-width: 768px) {
-          .navbar {
-            flex-direction: column;
-            padding: 1rem;
+        .top-tier-section {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 2rem;
+          margin-bottom: 2rem;
+        }
+
+        .top-tier-card {
+          background: var(--bg-secondary);
+          border-radius: var(--radius);
+          padding: 2rem;
+          text-align: center;
+          position: relative;
+          border: 2px solid var(--accent);
+          box-shadow: var(--shadow-lg);
+          animation: fadeIn 0.5s ease-out;
+          overflow: hidden;
+        }
+
+        .top-tier-card.empty {
+          border: 2px dashed var(--accent);
+          background: linear-gradient(45deg, var(--bg-secondary), var(--bg-tertiary));
+        }
+
+        .premium-badge {
+          position: absolute;
+          top: 1rem;
+          right: 1rem;
+          background: var(--accent);
+          color: var(--text-primary);
+          padding: 0.5rem 1rem;
+          border-radius: var(--radius-sm);
+          font-size: 0.9rem;
+          font-weight: 600;
+        }
+
+        .top-tier-card h3 {
+          color: var(--accent-light);
+          font-size: 1.75rem;
+          margin-bottom: 1rem;
+        }
+
+        .cta-button {
+          display: inline-block;
+          padding: 0.75rem 1.5rem;
+          background: var(--accent);
+          color: var(--text-primary);
+          text-decoration: none;
+          border-radius: var(--radius);
+          font-weight: 600;
+          transition: all 0.3s ease;
+          margin-top: 1rem;
+        }
+
+        .cta-button:hover {
+          background: var(--accent-hover);
+          transform: translateY(-2px);
+          box-shadow: 0 5px 15px rgba(88, 101, 242, 0.4);
+        }
+
+        .priority-banner {
+          width: 100%;
+          background: linear-gradient(45deg, var(--bg-secondary), var(--accent));
+          border-radius: var(--radius-lg);
+          margin: 2rem 0;
+          padding: 2rem;
+          box-shadow: var(--shadow-lg);
+        }
+
+        .banner-content {
+          display: flex;
+          align-items: center;
+          gap: 2rem;
+        }
+
+        .banner-content img {
+          width: 150px;
+          height: 150px;
+          border-radius: 50%;
+          border: 4px solid var(--text-primary);
+        }
+
+        .banner-info {
+          flex: 1;
+        }
+
+        .banner-info h2 {
+          font-size: 2rem;
+          margin-bottom: 1rem;
+          color: var(--text-primary);
+        }
+
+        .banner-info p {
+          font-size: 1.1rem;
+          margin-bottom: 1.5rem;
+          color: var(--text-primary);
+        }
+
+        .regular-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+          .top-tier-section {
+            grid-template-columns: repeat(2, 1fr);
           }
           
-          .navbar a {
-            width: 100%;
-            text-align: center;
+          .regular-grid {
+            grid-template-columns: repeat(2, 1fr);
           }
+        }
 
-          .container {
-            padding: 1rem;
-          }
-
-          .partner-grid {
+        @media (max-width: 768px) {
+          .top-tier-section {
             grid-template-columns: 1fr;
+          }
+          
+          .regular-grid {
+            grid-template-columns: 1fr;
+          }
+          
+          .banner-content {
+            flex-direction: column;
+            text-align: center;
           }
         }
       </style>
@@ -917,8 +1198,15 @@ app.get('/', async (req, res) => {
       </div>
       <div class="container">
         <h1>🤝 SkyVPS360 Discord Partner Network</h1>
-        <div class="partner-grid">
-          ${cards.join('')}
+        
+        <div class="top-tier-section">
+          ${topTierCards.join('')}
+        </div>
+
+        ${priorityBanner}
+        
+        <div class="regular-grid">
+          ${regularCards.join('')}
         </div>
       </div>
     </body>
@@ -1028,7 +1316,6 @@ app.get('/docs', (req, res) => {
           max-width: 1200px;
           margin: 2rem auto;
           padding: 2rem;
-          animation: fadeIn 0.5s ease-out;
         }
 
         @keyframes fadeIn {
