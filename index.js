@@ -1452,6 +1452,7 @@ app.get('/docs', (req, res) => {
             <ul>
               <li><strong>/register</strong> – Register your server for partnership
                 <ul>
+                  <li><b>IMPORTANT:</b> Your server must have a server image or it will not be accepted</li>
                   <li>After approval, you'll receive a setup form to configure your advertisement and settings</li>
                   <li>If declined, the bot will automatically leave your server</li>
                 </ul>
