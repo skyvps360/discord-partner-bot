@@ -470,9 +470,18 @@ client.on("interactionCreate", async (interaction) => {
           const guild = await client.guilds.fetch(partner.guildId);
           const channel = await guild.channels.fetch(partner.partnerChannelId);
           if (channel) {
-            await channel.send(
-              `📢 New partner bump from **${guildName}**:\n\n${self.partnerMessage}`,
-            );
+            const bumpEmbed = new EmbedBuilder()
+              .setColor('#5865F2')
+              .setTitle(`📢 Partner Advertisement: ${guildName}`)
+              .setDescription(self.partnerMessage)
+              .setTimestamp()
+              .setFooter({ text: 'SkyVPS360 Partner Network' });
+            
+            if (guild.iconURL()) {
+              bumpEmbed.setThumbnail(guild.iconURL());
+            }
+
+            await channel.send({ embeds: [bumpEmbed] });
             count++;
           }
         } catch (err) {
@@ -1319,10 +1328,12 @@ app.get("/", async (req, res) => {
         }
 
         .partner-card {
-          background: var(--bg-secondary);
+          background: rgba(44, 45, 49, 0.7);
+          backdrop-filter: blur(10px);
           border-radius: var(--radius);
           padding: 2rem;
           text-align: center;
+          border: 1px solid rgba(88, 101, 242, 0.2);
           transition: all 0.3s ease;
           border: 1px solid rgba(255,255,255,0.05);
           animation: fadeIn 0.5s ease-out;
