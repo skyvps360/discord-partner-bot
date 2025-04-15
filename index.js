@@ -984,8 +984,8 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
-  // Add this in the button interaction handler section
-  if (interaction.customId.startsWith("setup_modal_")) {
+  // Handle Modal Button Interactions
+  if (interaction.isButton() && interaction.customId.startsWith("setup_modal_")) {
     const targetId = interaction.customId.replace("setup_modal_", "");
     const modal = new ModalBuilder()
       .setCustomId(`partner_setup_${targetId}`)
@@ -1029,7 +1029,6 @@ client.on("interactionCreate", async (interaction) => {
         ephemeral: true,
       });
     }
-    return;
   }
 
   // Add this after the slash command handlers but before the button handler
