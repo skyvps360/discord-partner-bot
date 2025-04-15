@@ -1326,6 +1326,11 @@ app.get("/", async (req, res) => {
           transition: all 0.3s ease;
           border: 1px solid rgba(255,255,255,0.05);
           animation: fadeIn 0.5s ease-out;
+          max-height: 500px;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
         }
 
         .partner-card:hover {
@@ -1412,7 +1417,12 @@ app.get("/", async (req, res) => {
           border: 2px solid var(--accent);
           box-shadow: var(--shadow-lg);
           animation: fadeIn 0.5s ease-out;
-          overflow: hidden;
+          max-height: 600px;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 1rem;
         }
 
         .top-tier-card.empty {
