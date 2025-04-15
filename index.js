@@ -678,24 +678,14 @@ client.on("interactionCreate", async (interaction) => {
     const parts = interaction.customId.split("_");
 
     if (parts.length === 2) {
+      // Handle legacy format (approve_guildId or decline_guildId)
       [action, targetId] = parts;
       type = action.includes("msg") ? "msg" : null;
     } else if (parts.length === 3) {
+      // Handle new format (approve_msg_guildId)
       [action, type, targetId] = parts;
     } else {
       console.error("Invalid button customId format:", interaction.customId);
-      return interaction.reply({
-        content: "❌ Invalid button interaction format.",
-        ephemeral: true,
-      });
-    }
-
-    if (!targetId) {
-      return interaction.reply({
-        content: "❌ Invalid button interaction: No target ID.",
-        ephemeral: true
-      });
-    }
       return interaction.reply({
         content: "❌ Invalid button interaction format.",
         ephemeral: true,
@@ -994,8 +984,8 @@ client.on("interactionCreate", async (interaction) => {
     }
   }
 
-  // Handle Modal Button Interactions
-  if (interaction.isButton() && interaction.customId.startsWith("setup_modal_")) {
+  // Add this in the button interaction handler section
+  if (interaction.customId.startsWith("setup_modal_")) {
     const targetId = interaction.customId.replace("setup_modal_", "");
     const modal = new ModalBuilder()
       .setCustomId(`partner_setup_${targetId}`)
@@ -1039,6 +1029,7 @@ client.on("interactionCreate", async (interaction) => {
         ephemeral: true,
       });
     }
+    return;
   }
 
   // Add this after the slash command handlers but before the button handler
@@ -1137,11 +1128,13 @@ app.get("/", async (req, res) => {
 
     // Generate top tier slot cards
     // Ensure there are always 3 slots
-    // Display single card for SkyVPS360
-    const skyVpsId = "1310474963865833483";
-    const topTierCards = await Promise.all([
-      (async () => {
-        const slot = topTierSlots.find(s => s.guildId === skyVpsId) || { guildId: skyVpsId };
+    const slotsToDisplay = Array.from({ length: 3 }, (_, i) => {
+      const existingSlot = topTierSlots.find(s => s.slotNumber === i + 1);
+      return existingSlot || { slotNumber: i + 1 };
+    });
+
+    const topTierCards = await Promise.all(
+      slotsToDisplay.map(async (slot) => {
         if (!slot.guildId) {
           return `<div class="top-tier-card empty">
           <h3>Premium Slot ${slot.slotNumber}</h3>
@@ -1232,7 +1225,7 @@ app.get("/", async (req, res) => {
           const guild = await client.guilds.fetch(
             process.env.PRIORITY_SERVER_ID,
           );
-          const iconURL = guild.iconURL({ format: 'png', dynamic: true, size: 512 });
+          const iconURL = guild.iconURL();
           priorityBanner = `<div class="priority-banner">
             <div class="banner-content">
               <img src="${iconURL || ""}" alt="Server Icon" onerror="this.src='https://discord.com/assets/6debd47ed13483642cf09e832ed0bc1b.png'">
@@ -1423,13 +1416,10 @@ app.get("/", async (req, res) => {
         }
 
         .top-tier-section {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 2rem;
           margin-bottom: 2rem;
-        }
-        
-        .top-tier-section.single-card {
-          max-width: 800px;
-          margin-left: auto;
-          margin-right: auto;
         }
 
         .top-tier-card {
@@ -1575,8 +1565,8 @@ app.get("/", async (req, res) => {
       <div class="container">
         <h1>🤝 SkyVPS360 Discord Partner Network</h1>
         
-        <div class="top-tier-section single-card">
-          ${topTierCards[0]}
+        <div class="top-tier-section">
+          ${topTierCards.join("")}
         </div>
 
         ${priorityBanner}
