@@ -689,6 +689,11 @@ client.on("interactionCreate", async (interaction) => {
         ephemeral: true,
       });
     }
+      return interaction.reply({
+        content: "❌ Invalid button interaction format.",
+        ephemeral: true,
+      });
+    }
 
     console.log("Parsed button data:", { action, type, targetId });
 
