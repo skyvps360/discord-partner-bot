@@ -1127,8 +1127,14 @@ app.get("/", async (req, res) => {
     );
 
     // Generate top tier slot cards
+    // Ensure there are always 3 slots
+    const slotsToDisplay = Array.from({ length: 3 }, (_, i) => {
+      const existingSlot = topTierSlots.find(s => s.slotNumber === i + 1);
+      return existingSlot || { slotNumber: i + 1 };
+    });
+
     const topTierCards = await Promise.all(
-      topTierSlots.map(async (slot) => {
+      slotsToDisplay.map(async (slot) => {
         if (!slot.guildId) {
           return `<div class="top-tier-card empty">
           <h3>Premium Slot ${slot.slotNumber}</h3>
