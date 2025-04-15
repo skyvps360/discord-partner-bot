@@ -1485,28 +1485,33 @@ app.get("/", async (req, res) => {
 
         .priority-banner {
           width: 100%;
-          background: linear-gradient(45deg, var(--bg-secondary), var(--accent));
+          background: linear-gradient(90deg, var(--accent) 0%, var(--bg-secondary) 100%);
           border-radius: var(--radius-lg);
           margin: 2rem 0;
-          padding: 2rem;
-          box-shadow: var(--shadow-lg);
+          padding: 3rem;
+          box-shadow: 0 0 30px rgba(88, 101, 242, 0.3);
+          border: 2px solid var(--accent);
         }
 
         .banner-content {
-          display: flex;
+          display: grid;
+          grid-template-columns: auto 1fr;
           align-items: center;
-          gap: 2rem;
+          gap: 3rem;
+          max-width: 100%;
         }
 
         .banner-content img {
-          width: 150px;
-          height: 150px;
-          border-radius: 50%;
-          border: 4px solid var(--text-primary);
+          width: 200px;
+          height: 200px;
+          border-radius: 20px;
+          border: 4px solid var(--accent-light);
+          box-shadow: 0 0 20px rgba(88, 101, 242, 0.4);
         }
 
         .banner-info {
           flex: 1;
+          text-align: left;
         }
 
         .banner-info h2 {
