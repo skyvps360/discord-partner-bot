@@ -11,6 +11,22 @@ A Discord bot that helps manage partnerships between Discord servers with an app
    - `ADMIN_CHANNEL_ID` - Channel ID where partnership requests will be sent
 3. Start the bot: `node index.js`
    - Optionally use PM2 for process management: [pm2.io](https://pm2.io/)
+   - `npm install -g pm2`
+   - `pm2 start index.js --name "my-app"`
+   - `pm2 startup`
+   - `pm2 save`
+
+ 
+### 🔧 Common PM2 Commands:
+View running apps: `pm2 ls`
+
+Restart app: `pm2 restart my-app`
+
+Stop app: `pm2 stop my-app`
+
+Delete app: `pm2 delete my-app`
+
+View logs: `pm2 logs my-app`
 
 ## Features
 - Partnership management with approval system
