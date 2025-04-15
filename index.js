@@ -1216,13 +1216,11 @@ app.get("/", async (req, res) => {
       }),
     );
 
-    // Generate your banner (priority server)
+    // Generate priority banner for SkyVPS360
     let priorityBanner = "";
-    if (process.env.PRIORITY_SERVER_ID) {
-      const priorityServer = partners.find(
-        (p) => p.guildId === process.env.PRIORITY_SERVER_ID,
-      );
-      if (priorityServer) {
+    const skyVpsId = "1310474963865833483";
+    const priorityServer = partners.find(p => p.guildId === skyVpsId);
+    if (priorityServer) {
         try {
           const guild = await client.guilds.fetch(
             process.env.PRIORITY_SERVER_ID,
