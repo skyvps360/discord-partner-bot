@@ -689,6 +689,13 @@ client.on("interactionCreate", async (interaction) => {
         ephemeral: true,
       });
     }
+
+    if (!targetId) {
+      return interaction.reply({
+        content: "❌ Invalid button interaction: No target ID.",
+        ephemeral: true
+      });
+    }
       return interaction.reply({
         content: "❌ Invalid button interaction format.",
         ephemeral: true,
