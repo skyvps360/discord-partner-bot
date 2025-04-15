@@ -813,16 +813,21 @@ app.get('/', async (req, res) => {
         const onlineMembers = guild.members.cache.filter(m => m.presence?.status === 'online').size;
         const partner = partners.find(p => p.guildId === slot.guildId);
         
-        return `<div class="top-tier-card">
+        const isWideCard = slot.guildId === '1310474963865833483';
+        const cardClass = isWideCard ? 'top-tier-card wide-card' : 'top-tier-card';
+        
+        return `<div class="${cardClass}">
           <div class="premium-badge">⭐ Premium Partner</div>
           <img src="${iconURL || ''}" alt="${guild.name}" onerror="this.src='https://discord.com/assets/6debd47ed13483642cf09e832ed0bc1b.png'">
-          <h3>${guild.name}</h3>
-          <p>${partner?.partnerMessage || 'No message set'}</p>
-          <div class="stats">
-            <span class="stat">👥 ${memberCount}</span>
-            <span class="stat">🟢 ${onlineMembers}</span>
+          <div class="card-content">
+            <h3>${guild.name}</h3>
+            <p>${partner?.partnerMessage || 'No message set'}</p>
+            <div class="stats">
+              <span class="stat">👥 ${memberCount}</span>
+              <span class="stat">🟢 ${onlineMembers}</span>
+            </div>
+            ${partner?.inviteLink ? `<a href="${partner.inviteLink}" class="cta-button">Join Now</a>` : ''}
           </div>
-          ${partner?.inviteLink ? `<a href="${partner.inviteLink}" class="cta-button">Join Now</a>` : ''}
         </div>`;
       } catch (error) {
         console.error(`Error generating top tier card for ${slot.guildId}:`, error);
@@ -1064,6 +1069,7 @@ app.get('/', async (req, res) => {
           grid-template-columns: repeat(3, 1fr);
           gap: 2rem;
           margin-bottom: 2rem;
+          min-height: 400px;
         }
 
         .top-tier-card {
@@ -1076,6 +1082,35 @@ app.get('/', async (req, res) => {
           box-shadow: var(--shadow-lg);
           animation: fadeIn 0.5s ease-out;
           overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+
+        .wide-card {
+          grid-column: span 3;
+          display: grid;
+          grid-template-columns: auto 1fr;
+          text-align: left;
+          gap: 2rem;
+          padding: 3rem;
+        }
+
+        .wide-card img {
+          width: 180px;
+          height: 180px;
+          margin: 0;
+        }
+
+        .wide-card .premium-badge {
+          left: 1rem;
+          right: auto;
+        }
+
+        .wide-card .card-content {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
         }
 
         .top-tier-card.empty {
