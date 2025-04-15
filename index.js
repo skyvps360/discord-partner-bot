@@ -1128,13 +1128,11 @@ app.get("/", async (req, res) => {
 
     // Generate top tier slot cards
     // Ensure there are always 3 slots
-    const slotsToDisplay = Array.from({ length: 3 }, (_, i) => {
-      const existingSlot = topTierSlots.find(s => s.slotNumber === i + 1);
-      return existingSlot || { slotNumber: i + 1 };
-    });
-
-    const topTierCards = await Promise.all(
-      slotsToDisplay.map(async (slot) => {
+    // Display single card for SkyVPS360
+    const skyVpsId = "1310474963865833483";
+    const topTierCards = await Promise.all([
+      (async () => {
+        const slot = topTierSlots.find(s => s.guildId === skyVpsId) || { guildId: skyVpsId };
         if (!slot.guildId) {
           return `<div class="top-tier-card empty">
           <h3>Premium Slot ${slot.slotNumber}</h3>
@@ -1416,10 +1414,13 @@ app.get("/", async (req, res) => {
         }
 
         .top-tier-section {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 2rem;
           margin-bottom: 2rem;
+        }
+        
+        .top-tier-section.single-card {
+          max-width: 800px;
+          margin-left: auto;
+          margin-right: auto;
         }
 
         .top-tier-card {
@@ -1565,8 +1566,8 @@ app.get("/", async (req, res) => {
       <div class="container">
         <h1>🤝 SkyVPS360 Discord Partner Network</h1>
         
-        <div class="top-tier-section">
-          ${topTierCards.join("")}
+        <div class="top-tier-section single-card">
+          ${topTierCards[0]}
         </div>
 
         ${priorityBanner}
