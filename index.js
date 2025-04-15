@@ -1223,7 +1223,7 @@ app.get("/", async (req, res) => {
           const guild = await client.guilds.fetch(
             process.env.PRIORITY_SERVER_ID,
           );
-          const iconURL = guild.iconURL();
+          const iconURL = guild.iconURL({ format: 'png', dynamic: true, size: 512 });
           priorityBanner = `<div class="priority-banner">
             <div class="banner-content">
               <img src="${iconURL || ""}" alt="Server Icon" onerror="this.src='https://discord.com/assets/6debd47ed13483642cf09e832ed0bc1b.png'">
