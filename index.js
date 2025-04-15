@@ -678,11 +678,9 @@ client.on("interactionCreate", async (interaction) => {
     const parts = interaction.customId.split("_");
 
     if (parts.length === 2) {
-      // Handle legacy format (approve_guildId or decline_guildId)
       [action, targetId] = parts;
       type = action.includes("msg") ? "msg" : null;
     } else if (parts.length === 3) {
-      // Handle new format (approve_msg_guildId)
       [action, type, targetId] = parts;
     } else {
       console.error("Invalid button customId format:", interaction.customId);
