@@ -1240,7 +1240,6 @@ app.get("/", async (req, res) => {
           console.error("Error generating priority banner:", error);
         }
       }
-    }
 
     const htmlTemplate = `
     <!DOCTYPE html>
