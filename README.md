@@ -56,4 +56,4 @@ View logs: `pm2 logs my-app`
 - Users need either the partner role or administrator permissions to use most commands
 - The bot automatically creates an 'ad-logs' channel for logging partnership activities
 
-### Brought to you by the $4 256GiB KVM VPS Provider [SkyVPS360.xyz](https://skyvps360.xyz/)
+### Brought to you by the $2 100GiB KVM VPS Provider [SkyVPS360.xyz](https://skyvps360.xyz/)
