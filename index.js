@@ -116,7 +116,7 @@ const commands = [
     ),
   new SlashCommandBuilder()
     .setName("settopslot")
-    .setDescription("Set a server in a top tier slot (Owner only)")
+    .setDescription("Set a server in a top tier slot (Bot Owner only)")
     .addStringOption((option) =>
       option
         .setName("serverid")
@@ -1319,7 +1319,7 @@ client.on("interactionCreate", async (interaction) => {
           try {
             await owner.send({
               content:
-                "✅ Your server has been approved for partnering! Please click the button below to set up your server advertisement.",
+                `✅ Your server **${guild.name}** has been approved for partnering! Please click the button below to set up your server advertisement.`,
               components: [
                 new ActionRowBuilder().addComponents(
                   new ButtonBuilder()
@@ -1334,7 +1334,7 @@ client.on("interactionCreate", async (interaction) => {
             // Fallback to log channel
             if (logChannel) {
               await logChannel.send({
-                content: `✅ Your server has been approved for partnering! ${owner}, please click the button below to set up your server advertisement.`,
+                content: `✅ Your server **${guild.name}** has been approved for partnering! ${owner}, please click the button below to set up your server advertisement.`,
                 components: [
                   new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
@@ -1524,30 +1524,55 @@ mongoose.connection.on("error", (err) => {
 app.get("/", async (req, res) => {
   try {
     console.log("Fetching top tier slots...");
-    const topTierSlots = await TopTierSlot.find({}).sort({ slotNumber: 1 });
+    let topTierSlots, partners;
+    if (process.env.DEV_MODE === "true") {
+      // Sample data for development
+      topTierSlots = [
+        { slotNumber: 1, guildId: "111", guildName: "Level 1 Premium Server", memberCount: 1200, iconURL: () => "https://cdn-icons-png.flaticon.com/512/5968/5968756.png", members: { cache: { filter: () => ({ size: 300 }) } } },
+        { slotNumber: 2, guildId: "222", guildName: "Level 2 Premium Server", memberCount: 850, iconURL: () => "https://cdn-icons-png.flaticon.com/512/5968/5968774.png", members: { cache: { filter: () => ({ size: 120 }) } } },
+        { slotNumber: 3, guildId: "333", guildName: "Level 3 Premium Server", memberCount: 430, iconURL: () => "https://cdn-icons-png.flaticon.com/512/5968/5968707.png", members: { cache: { filter: () => ({ size: 45 }) } } }
+      ];
+      partners = [
+        // Premium partners
+        { guildId: "111", guildName: "Level 1 Premium Server", partnerMessage: "The best premium server for your needs!", inviteLink: "https://discord.gg/level1" },
+        { guildId: "222", guildName: "Level 2 Premium Server", partnerMessage: "A great community for everyone.", inviteLink: "https://discord.gg/level2" },
+        { guildId: "333", guildName: "Level 3 Premium Server", partnerMessage: "Join us for fun and events!", inviteLink: "https://discord.gg/level3" },
+        // Regular partners
+        { guildId: "444", guildName: "Regular Partner Alpha", partnerMessage: "A friendly server for all things tech!", inviteLink: "https://discord.gg/alpha" },
+        { guildId: "555", guildName: "Regular Partner Beta", partnerMessage: "Chill, chat, and game with us.", inviteLink: "https://discord.gg/beta" },
+        { guildId: "666", guildName: "Regular Partner Gamma", partnerMessage: "Events, giveaways, and more!", inviteLink: "https://discord.gg/gamma" }
+      ];
+    } else {
+      topTierSlots = await TopTierSlot.find({}).sort({ slotNumber: 1 });
+      console.log("Fetching approved partners...");
+      partners = await Partner.find(
+        {
+          approved: true,
+          partnerMessage: { $exists: true, $ne: null },
+        },
+        "guildId guildName partnerMessage inviteLink lastBump",
+      ).sort({ lastBump: -1 });
+    }
 
-    console.log("Fetching approved partners...");
-    const partners = await Partner.find(
-      {
-        approved: true,
-        partnerMessage: { $exists: true, $ne: null },
-      },
-      "guildId guildName partnerMessage inviteLink lastBump",
-    ).sort({ lastBump: -1 });
-
-    // Generate top tier slot cards
-    // Ensure there are always 3 slots
-    const slotsToDisplay = Array.from({ length: 3 }, (_, i) => {
-      const existingSlot = topTierSlots.find(s => s.slotNumber === i + 1);
-      return existingSlot || { slotNumber: i + 1 };
-    });
+    // Weighted single slot selection for premium slots
+    // Level 1 = slotNumber 1, Level 2 = slotNumber 2, Level 3 = slotNumber 3
+    const weightedPool = [1, 1, 1, 2, 2, 3]; // Level 1 most likely, then 2, then 3
+    const selectedLevel = weightedPool[Math.floor(Math.random() * weightedPool.length)];
+    const selectedSlot = topTierSlots.find(s => s.slotNumber === selectedLevel) || { slotNumber: selectedLevel };
+    const slotsToDisplay = [selectedSlot];
 
     const topTierCards = await Promise.all(
       slotsToDisplay.map(async (slot) => {
         if (!slot.guildId) {
+          // Define probability for each slot
+          let probability = '';
+          if (slot.slotNumber === 1) probability = '50% chance to be shown';
+          else if (slot.slotNumber === 2) probability = '33.3% chance to be shown';
+          else if (slot.slotNumber === 3) probability = '16.7% chance to be shown';
           return `<div class="top-tier-card empty">
           <h3>Premium Slot ${slot.slotNumber}</h3>
           <p>This premium advertising slot is available!</p>
+          <p class="probability">${probability}</p>
           <a href="https://skyvps360.xyz/discord" class="cta-button">Get Your Slot Now</a>
         </div>`;
         }
@@ -1640,7 +1665,7 @@ app.get("/", async (req, res) => {
     );
 
     // Generate priority banner for SkyVPS360
-    let priorityBanner = "SkyVPS360";
+    let priorityBanner = "👊SkyVPS360.xyz Partner Network";
     const skyVpsId = "1310474963865833483";
     const priorityServer = partners.find(p => p.guildId === skyVpsId);
     if (priorityServer) {
@@ -1759,7 +1784,12 @@ app.get("/", async (req, res) => {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
           gap: 2rem;
-          margin-top: 2rem;
+          margin-top: 3.5rem;
+        }
+
+        /* Add spacing below premium/top-tier card section */
+        .top-tier-section {
+          margin-bottom: 3.5rem;
         }
 
         .partner-card {
@@ -2144,18 +2174,18 @@ app.get("/", async (req, res) => {
       <div class="navbar">
         <a href="/">Home</a>
         <a href="/docs">Docs</a>
-        <a href="${process.env.DOMAIN}">SkyVPS360.xyz - KVMM VPS $3 Ryzen Epyc</a>
+        <a href="${process.env.DOMAIN}">SkyVPS360.xyz - KVM VPS $3 Ryzen Epyc</a>
         <a href="${getBotInviteUrl()}">Invite Bot</a>
       </div>
       <div class="container">
-        <h1>🤝 SkyVPS360 Discord Partner Network</h1>
-        
+        <div class="hero-header">
+          ${priorityBanner}
+        </div>
+
         <div class="top-tier-section">
           ${topTierCards.join("")}
         </div>
 
-        ${priorityBanner}
-        
         <div class="regular-grid">
           ${regularCards.join("")}
         </div>
@@ -2425,7 +2455,7 @@ app.get("/docs", (req, res) => {
       <div class="navbar">
         <a href="/">Home</a>
         <a href="/docs">Docs</a>
-        <a href="${process.env.DOMAIN}">SkyVPS360 - 256GB KVM VPS $4</a>
+        <a href="${process.env.DOMAIN}">SkyVPS360 - $3 Ryzen Epyc KVM VPS</a>
         <a href="${getBotInviteUrl()}">Invite Bot</a>
       </div>
       <div class="container">
