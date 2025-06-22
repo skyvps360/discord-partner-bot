@@ -391,7 +391,7 @@ client.on("interactionCreate", async (interaction) => {
       helpEmbed.addFields(
         {
           name: "\nNeed More Help?",
-          value: `• Type a command for more details\n• Visit our [Documentation](${process.env.SITE_URL || `http://0.0.0.0:${process.env.PORT || 3000}`}/docs) for guides\n• Contact server staff for assistance`
+          value: `• Type a command for more details\n• Visit our [Documentation](${process.env.SITE_URL || `http://0.0.0.0:${process.env.PORT || 4444}`}/docs) for guides\n• Contact server staff for assistance`
         }
       );
 
@@ -2403,7 +2403,7 @@ app.get("/docs", (req, res) => {
   `);
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4444;
 app.listen(PORT, () =>
   console.log(`🌐 Web dashboard running on http://localhost:${PORT}`),
 );
