@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: discord-partner-bot
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - NODE_ENV=production
+      - PORT=4444
+      # MongoDB connection will be set via .env
+    ports:
+      - "${PORT:-4444}:4444"
+    depends_on:
+      - mongo
+    networks:
+      - discord-bot-network
+
+  mongo:
+    image: mongo:6.0
+    container_name: discord-bot-mongo
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_DATABASE=discord_bot
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - discord-bot-network
+
+networks:
+  discord-bot-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:

@@ -2,22 +2,87 @@
 
 A Discord bot that helps manage partnerships between Discord servers with an approval system and automated message bumping.
 
-## Setup Instructions
-1. Install dependencies: `npm install`
-2. Create a `.env` file with the following variables:
-   - `DISCORD_TOKEN` - Your Discord bot token
-   - `MONGO_URI` - MongoDB connection string
-   - `ADMIN_SERVER_ID` - ID of the server where partnership approvals will be handled
-   - `ADMIN_CHANNEL_ID` - Channel ID where partnership requests will be sent
-3. Start the bot: `node index.js` - best if testing in dev or deploying to an App Platform like Heroku or Vercel or DigitalOcean
-   - Optionally use PM2 for process management: [pm2.io](https://pm2.io/)
-   - `npm install -g pm2`
-   - `pm2 start index.js --name "my-app"`
-   - `pm2 startup`
-   - `pm2 save`
+## Prerequisites
 
- 
-### 🔧 Common PM2 Commands:
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [Docker](https://www.docker.com/get-started/) and [Docker Compose](https://docs.docker.com/compose/install/)
+- [MongoDB](https://www.mongodb.com/) (or use the included Docker Compose setup)
+
+## Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Discord Bot Configuration
+DISCORD_TOKEN=your_discord_bot_token
+
+# MongoDB Configuration
+MONGO_URI=mongodb://mongo:27017/discord_bot
+
+# Admin Configuration
+ADMIN_SERVER_ID=your_admin_server_id
+ADMIN_CHANNEL_ID=your_admin_channel_id
+
+# Web Server Configuration
+PORT=4444
+NODE_ENV=production
+```
+
+## Deployment Options
+
+### Using Docker Compose (Recommended)
+
+1. Ensure Docker and Docker Compose are installed on your system
+2. Update the `.env` file with your configuration
+3. Run the following commands:
+
+```bash
+# Build and start the containers
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f
+
+# Stop the containers
+docker-compose down
+```
+
+The bot will be available and connected to a MongoDB instance running in a separate container.
+
+### Manual Setup (Without Docker)
+
+1. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+2. Start the bot:
+
+   ```bash
+   node index.js
+   ```
+
+### PM2 Process Manager (Production)
+
+For production deployments, you can use PM2 to keep the bot running:
+
+```bash
+# Install PM2 globally
+npm install -g pm2
+
+# Start the application
+pm2 start index.js --name "discord-partner-bot"
+
+# Set up PM2 to start on system boot
+pm2 startup
+pm2 save
+
+# View logs
+pm2 logs discord-partner-bot
+```
+
+## Common PM2 Commands
 View running apps: `pm2 ls`
 
 Restart app: `pm2 restart my-app`

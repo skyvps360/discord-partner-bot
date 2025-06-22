@@ -1,0 +1,30 @@
+# Dependency directories
+node_modules/
+npm-debug.log
+
+# Environment variables
+.env
+
+# Git
+.git
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Local development files
+*.local
+
+# Docker files
+Dockerfile
+docker-compose*.yml
+.dockerignore
