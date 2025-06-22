@@ -1562,16 +1562,23 @@ app.get("/", async (req, res) => {
           const partner = partners.find((p) => p.guildId === slot.guildId);
 
           return `<div class="top-tier-card">
-          <div class="premium-badge">⭐ Premium Partner</div>
-          <img src="${iconURL || ""}" alt="${guild.name}" onerror="this.src='https://discord.com/assets/6debd47ed13483642cf09e832ed0bc1b.png'">
-          <h3>${guild.name}</h3>
-          <p>${partner?.partnerMessage || "No message set"}</p>
-          <div class="stats">
-            <span class="stat">👥 ${memberCount}</span>
-            <span class="stat">🟢 ${onlineMembers}</span>
-          </div>
-          ${partner?.inviteLink ? `<a href="${partner.inviteLink}" class="cta-button">Join Now</a>` : ""}
-        </div>`;
+            <div class="premium-badge">⭐ Premium</div>
+            <img src="${iconURL || "https://discord.com/assets/6debd47ed13483642cf09e832ed0bc1b.png"}" 
+                 alt="${guild.name}" 
+                 onerror="this.onerror=null;this.src='https://discord.com/assets/6debd47ed13483642cf09e832ed0bc1b.png'">
+            <h3 title="${guild.name}">${guild.name}</h3>
+            <p>${partner?.partnerMessage?.substring(0, 100) || "No message set"}${partner?.partnerMessage?.length > 100 ? '...' : ''}</p>
+            <div class="stats">
+              <span class="stat" title="Total Members">👥 ${memberCount.toLocaleString()}</span>
+              <span class="stat" title="Online Members">🟢 ${onlineMembers.toLocaleString()}</span>
+            </div>
+            ${partner?.inviteLink ? `
+              <a href="${partner.inviteLink}" class="cta-button" target="_blank" rel="noopener noreferrer">
+                Join Server
+              </a>` : 
+              '<div class="cta-button disabled">No Invite</div>'
+            }
+          </div>`;
         } catch (error) {
           console.error(
             `Error generating top tier card for ${slot.guildId}:`,
@@ -1883,70 +1890,178 @@ app.get("/", async (req, res) => {
           }
         }
 
-        .top-tier-section {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-          grid-auto-rows: 1fr;
-          gap: 2rem;
-          margin-bottom: 2rem;
+        .top-tier-card.empty {
+          border: 2px dashed rgba(114, 137, 218, 0.3);
+          background: rgba(44, 45, 49, 0.5);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 2rem 1.5rem;
+          transition: all 0.3s ease;
+        }
+
+        .top-tier-card.empty:hover {
+          border-color: var(--accent);
+          background: rgba(44, 45, 49, 0.7);
+          transform: translateY(-4px);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .empty-slot-icon {
+          width: 80px;
+          height: 80px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(114, 137, 218, 0.1);
+          border-radius: 50%;
+          margin-bottom: 1rem;
+        }
+
+        .empty-slot-icon svg {
+          width: 40px;
+          height: 40px;
+        }
+
+        .premium-badge {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          background: linear-gradient(45deg, #7289da, #5865f2);
+          color: white;
+          padding: 4px 12px 3px;
+          border-radius: 50px;
+          font-size: 0.7rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+          z-index: 1;
         }
 
         .top-tier-card {
           background: var(--bg-secondary);
           border-radius: var(--radius);
-          padding: 2rem;
+          padding: 20px;
+          color: var(--text-primary);
           text-align: center;
+          transition: all 0.3s ease;
           position: relative;
-          border: 2px solid var(--accent);
-          box-shadow: var(--shadow-lg);
-          animation: fadeIn 0.5s ease-out;
+          overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.05);
           display: flex;
           flex-direction: column;
-          justify-content: space-between;
-          align-items: center;
-          gap: 1rem;
           height: 100%;
         }
 
-        .top-tier-card.empty {
-          border: 2px dashed var(--accent);
-          background: linear-gradient(45deg, var(--bg-secondary), var(--bg-tertiary));
+        .top-tier-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+          border-color: rgba(114, 137, 218, 0.3);
         }
 
-        .premium-badge {
-          position: absolute;
-          top: 1rem;
-          right: 1rem;
-          background: var(--accent);
-          color: var(--text-primary);
-          padding: 0.5rem 1rem;
-          border-radius: var(--radius-sm);
-          font-size: 0.9rem;
-          font-weight: 600;
+        .top-tier-card img {
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          margin: 0 auto 12px;
+          display: block;
+          object-fit: cover;
+          border: 3px solid var(--accent);
+          transition: transform 0.3s ease;
+        }
+
+        .top-tier-card:hover img {
+          transform: scale(1.05);
         }
 
         .top-tier-card h3 {
-          color: var(--accent-light);
-          font-size: 1.75rem;
-          margin-bottom: 1rem;
+          margin: 8px 0 4px;
+          font-size: 1.2rem;
+          color: var(--text-primary);
+          font-weight: 600;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          padding: 0 10px;
+        }
+
+        .top-tier-card p {
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+          margin: 0 0 16px;
+          min-height: 40px;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          line-height: 1.4;
+        }
+
+        .top-tier-card .stats {
+          display: flex;
+          justify-content: center;
+          gap: 20px;
+          margin: 12px 0 20px;
+          flex-wrap: wrap;
+        }
+
+        .top-tier-card .stat {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 0.85rem;
+          color: var(--text-muted);
+          background: rgba(255, 255, 255, 0.05);
+          padding: 4px 10px;
+          border-radius: 12px;
+          transition: all 0.2s ease;
+        }
+
+        .top-tier-card .stat:hover {
+          background: rgba(114, 137, 218, 0.2);
+          color: var(--text-primary);
         }
 
         .cta-button {
           display: inline-block;
-          padding: 0.75rem 1.5rem;
+          padding: 10px 20px;
           background: var(--accent);
-          color: var(--text-primary);
+          color: white;
           text-decoration: none;
-          border-radius: var(--radius);
+          border-radius: 6px;
           font-weight: 600;
-          transition: all 0.3s ease;
-          margin-top: 1rem;
+          font-size: 0.9rem;
+          transition: all 0.2s ease;
+          margin-top: auto;
+          width: fit-content;
+          align-self: center;
         }
 
         .cta-button:hover {
           background: var(--accent-hover);
           transform: translateY(-2px);
-          box-shadow: 0 5px 15px rgba(88, 101, 242, 0.4);
+          box-shadow: 0 4px 12px rgba(88, 101, 242, 0.3);
+        }
+
+        .cta-button.disabled {
+          background: var(--bg-tertiary);
+          color: var(--text-muted);
+          cursor: not-allowed;
+          transform: none !important;
+          box-shadow: none !important;
+        }
+
+        @media (max-width: 768px) {
+          .top-tier-section {
+            grid-template-columns: 1fr;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+          }
         }
 
         .priority-banner {
