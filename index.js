@@ -1217,22 +1217,25 @@ app.get("/", async (req, res) => {
     );
 
     // Generate priority banner for SkyVPS360
-    let priorityBanner = "";
+    let priorityBanner = "SkyVPS360";
     const skyVpsId = "1310474963865833483";
     const priorityServer = partners.find(p => p.guildId === skyVpsId);
     if (priorityServer) {
         try {
-          const guild = await client.guilds.fetch(
-            process.env.PRIORITY_SERVER_ID,
-          );
-          const iconURL = guild.iconURL();
+          const guild = await client.guilds.fetch(skyVpsId).catch(console.error);
+          if (!guild) {
+            console.log("Priority server not found in bot's guilds");
+            return "";
+          }
+          
+          const iconURL = guild.iconURL({ format: 'png', dynamic: true, size: 256 });
           priorityBanner = `<div class="priority-banner">
             <div class="banner-content">
               <img src="${iconURL || ""}" alt="Server Icon" onerror="this.src='https://discord.com/assets/6debd47ed13483642cf09e832ed0bc1b.png'">
               <div class="banner-info">
                 <h2>${guild.name}</h2>
-                <p>${priorityServer.partnerMessage}</p>
-                ${priorityServer.inviteLink ? `<a href="${priorityServer.inviteLink}" target="_blank" class="cta-button">Join Now</a>` : ""}
+                <p>${priorityServer.partnerMessage || 'Premium Partner Server'}</p>
+                ${priorityServer.inviteLink ? `<a href="${priorityServer.inviteLink}" target="_blank" rel="noopener noreferrer" class="cta-button">Join Now</a>` : ''}
               </div>
             </div>
           </div>`;
