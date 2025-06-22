@@ -19,6 +19,17 @@ const {
 const express = require("express");
 const mongoose = require("mongoose");
 require("dotenv").config();
+const { createCanvas } = require('canvas');
+
+// Function to generate a letter icon with consistent styling
+function generateLetterIcon(letter) {
+  // Take first character and convert to uppercase
+  const char = String(letter || '?').charAt(0).toUpperCase();
+  
+  // Return just the character - we'll handle styling in CSS
+  // The color will be controlled by the CSS variables
+  return { char };
+}
 
 // MongoDB Setup (Removed deprecated options)
 mongoose.connect(process.env.MONGO_URI);
@@ -861,9 +872,6 @@ client.on("interactionCreate", async (interaction) => {
 
         try {
           const guild = await client.guilds.fetch(targetId);
-          const logChannel = guild.channels.cache.find(
-            (c) => c.name === "ad-logs",
-          );
 
           // Create the setup modal
           const modal = new ModalBuilder()
@@ -1194,9 +1202,16 @@ app.get("/", async (req, res) => {
             (m) => m.presence?.status === "online",
           ).size;
           const botCount = guild.members.cache.filter((m) => m.user.bot).size;
+          
+          // Generate fallback icon if no server icon
+          const { bgColor, char } = generateLetterIcon(guild.name);
+          const iconHtml = iconURL 
+            ? `<img src="${iconURL}" alt="${guild.name} Icon" class="server-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+               <div class="letter-icon" style="display: none; background-color: ${bgColor};">${char}</div>`
+            : `<div class="letter-icon" style="background-color: ${bgColor};">${char}</div>`;
 
           return `<div class="partner-card">
-          <img src="${iconURL || ""}" alt="Server Icon" onerror="this.src='https://discord.com/assets/6debd47ed13483642cf09e832ed0bc1b.png'">
+          ${iconHtml}
           <strong>${guild.name}</strong>
           <p>${p.partnerMessage}</p>
           <div class="stats">
@@ -1229,9 +1244,15 @@ app.get("/", async (req, res) => {
           }
           
           const iconURL = guild.iconURL({ format: 'png', dynamic: true, size: 256 });
+          const { bgColor, char } = generateLetterIcon(guild.name);
+          const iconHtml = iconURL 
+            ? `<img src="${iconURL}" alt="${guild.name} Icon" class="banner-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+               <div class="letter-icon banner-icon" style="display: none; background-color: ${bgColor};">${char}</div>`
+            : `<div class="letter-icon banner-icon" style="background-color: ${bgColor};">${char}</div>`;
+            
           priorityBanner = `<div class="priority-banner">
             <div class="banner-content">
-              <img src="${iconURL || ""}" alt="Server Icon" onerror="this.src='https://discord.com/assets/6debd47ed13483642cf09e832ed0bc1b.png'">
+              ${iconHtml}
               <div class="banner-info">
                 <h2>${guild.name}</h2>
                 <p>${priorityServer.partnerMessage || 'Premium Partner Server'}</p>
@@ -1356,24 +1377,64 @@ app.get("/", async (req, res) => {
           border-color: var(--accent);
         }
 
-        .partner-card img {
-          width: 120px;
-          height: 120px;
+        .server-icon {
+          width: 100px;
+          height: 100px;
           border-radius: 50%;
-          margin-bottom: 1.5rem;
-          border: 4px solid var(--bg-tertiary);
+          object-fit: cover;
+          margin: 0 auto 1rem;
+          border: 3px solid var(--accent);
+          background: var(--bg-tertiary);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-
-        .partner-card strong {
-          display: block;
+        
+        .partner-card:hover .server-icon {
+          transform: scale(1.05);
+          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .letter-icon {
+          width: 100px;
+          height: 100px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           color: var(--accent);
-          font-size: 1.5rem;
-          margin-bottom: 1rem;
+          font-size: 3rem;
+          font-weight: 600;
+          margin: 0 auto 1rem;
+          border: 3px solid var(--accent);
+          background: var(--bg-secondary);
+          text-transform: uppercase;
+          transition: all 0.2s ease;
+          font-family: 'Inter', sans-serif;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
-
-        .partner-card p {
-          color: var(--text-secondary);
-          margin-bottom: 1.5rem;
+        
+        .partner-card:hover .letter-icon {
+          transform: scale(1.05);
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+          border-color: var(--accent);
+          background: var(--bg-tertiary);
+          color: var(--accent);
+        }
+        
+        .banner-icon {
+          width: 150px;
+          height: 150px;
+          font-size: 4.5rem;
+          border-width: 4px;
+          background: var(--bg-secondary);
+          color: var(--accent);
+          border-color: var(--accent);
+          font-weight: 600;
+        }
+        
+        .banner-icon.letter-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .stats {
