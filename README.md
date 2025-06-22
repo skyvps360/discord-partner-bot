@@ -9,7 +9,7 @@ A Discord bot that helps manage partnerships between Discord servers with an app
    - `MONGO_URI` - MongoDB connection string
    - `ADMIN_SERVER_ID` - ID of the server where partnership approvals will be handled
    - `ADMIN_CHANNEL_ID` - Channel ID where partnership requests will be sent
-3. Start the bot: `node index.js`
+3. Start the bot: `node index.js` - best if testing in dev or deploying to an App Platform like Heroku or Vercel or DigitalOcean
    - Optionally use PM2 for process management: [pm2.io](https://pm2.io/)
    - `npm install -g pm2`
    - `pm2 start index.js --name "my-app"`
@@ -56,4 +56,4 @@ View logs: `pm2 logs my-app`
 - Users need either the partner role or administrator permissions to use most commands
 - The bot automatically creates an 'ad-logs' channel for logging partnership activities
 
-### Brought to you by the $2 100GiB KVM VPS Provider [SkyVPS360.xyz](https://skyvps360.xyz/)
+### Brought to you by the $3 Ryzen Epyc KVM VPS Provider [SkyVPS360.xyz](https://skyvps360.xyz/)

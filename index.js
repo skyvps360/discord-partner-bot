@@ -57,6 +57,16 @@ const PartnerSchema = new mongoose.Schema({
 });
 const Partner = mongoose.model("Partner", PartnerSchema);
 
+// Banned Guilds Schema
+const BannedGuildSchema = new mongoose.Schema({
+  guildId: { type: String, required: true, unique: true },
+  guildName: String,
+  bannedAt: { type: Date, default: Date.now },
+  bannedBy: String,
+  reason: String
+});
+const BannedGuild = mongoose.model("BannedGuild", BannedGuildSchema);
+
 // Discord Bot Setup
 const client = new Client({
   intents: [
@@ -138,14 +148,74 @@ const commands = [
           { name: "Slot 3", value: 3 },
         ),
     ),
+  new SlashCommandBuilder()
+    .setName("adminunregister")
+    .setDescription("Remove a server from the partner network (Bot Owner only)")
+    .addStringOption(option =>
+      option
+        .setName("guildid")
+        .setDescription("The ID of the server to unregister")
+        .setRequired(true)
+    ),
+  new SlashCommandBuilder()
+    .setName("kick")
+    .setDescription("Make the bot leave a server (Bot Owner only)")
+    .addStringOption(option =>
+      option
+        .setName("guildid")
+        .setDescription("The ID of the server to leave")
+        .setRequired(true)
+    ),
+  new SlashCommandBuilder()
+    .setName("ban")
+    .setDescription("Ban a server from using the bot (Bot Owner only)")
+    .addStringOption(option =>
+      option
+        .setName("guildid")
+        .setDescription("The ID of the server to ban")
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option
+        .setName("reason")
+        .setDescription("Reason for the ban")
+        .setRequired(false)
+    ),
+  new SlashCommandBuilder()
+    .setName("unban")
+    .setDescription("Unban a server (Bot Owner only)")
+    .addStringOption(option =>
+      option
+        .setName("guildid")
+        .setDescription("The ID of the server to unban")
+        .setRequired(true)
+    ),
 ];
+
+// Event handler for when the bot is added to a new server
+client.on("guildCreate", async (guild) => {
+  try {
+    // Check if this guild is banned
+    const bannedGuild = await BannedGuild.findOne({ guildId: guild.id });
+    if (bannedGuild) {
+      console.log(`Automatically leaving banned guild: ${guild.name} (${guild.id})`);
+      await guild.leave();
+      return;
+    }
+
+    // Log when the bot joins a new server
+    console.log(`Joined new guild: ${guild.name} (${guild.id})`);
+  } catch (error) {
+    console.error('Error in guildCreate event:', error);
+  }
+});
 
 client.once("ready", async () => {
   try {
     console.log(`Logged in as ${client.user.tag}`);
 
     // Set bot's activity status
-    await client.user.setActivity("skyvps360.xyz $4 256GB KVM VPS", {
+    await client.user.setActivity("skyvps360.xyz $3 Ryzen Epyc KVM VPS", {
       type: ActivityType.Watching,
     });
 
@@ -233,40 +303,97 @@ client.on("interactionCreate", async (interaction) => {
 
     // Slash Command Handlers:
     if (interaction.commandName === "help") {
+      // Create sections for different command types
+      const commandSections = [
+        {
+          title: "📌 GETTING STARTED",
+          description: "These commands help you set up and manage your server's partnership:",
+          commands: [
+            { 
+              name: "/register", 
+              description: "Start the partnership process for your server" 
+            },
+            { 
+              name: "/setchannel", 
+              description: "Set the channel where partner ads will appear" 
+            },
+            { 
+              name: "/bump", 
+              description: "Share your server ad with all partners (30-min cooldown)" 
+            }
+          ]
+        },
+        {
+          title: "⚙️ SERVER CONFIGURATION",
+          description: "Manage your server's partnership settings (requires partner role or admin):",
+          commands: [
+            { 
+              name: "/setrole", 
+              description: "Set which role can use partner commands (Server Owner only)" 
+            },
+            { 
+              name: "/unregister", 
+              description: "Remove your server from the partner network (Partner role or Admin required)" 
+            },
+            { 
+              name: "/setchannel", 
+              description: "Set the channel for receiving partner ads" 
+            }
+          ]
+        },
+        {
+          title: "🛡️ BOT OWNER COMMANDS",
+          description: "These commands are only available to the bot owner:",
+          commands: [
+            { name: "/adminunregister <guildid>", description: "Remove a server from the network" },
+            { name: "/kick <guildid>", description: "Make the bot leave a server" },
+            { name: "/ban <guildid> [reason]", description: "Ban a server from using the bot" },
+            { name: "/unban <guildid>", description: "Unban a server" },
+            { name: "/setstatus", description: "Change the bot's status" }
+          ]
+        }
+      ];
+
+      // Create the main help embed
       const helpEmbed = new EmbedBuilder()
         .setColor("#7289da")
-        .setTitle("📘 Partner Bot Commands")
-        .setDescription(
-          "These commands require the partner role or administrator permissions:",
-        )
+        .setTitle("🤝 Partner Bot Help Center")
+        .setDescription("Welcome to the Partner Bot! Here's how to get started:")
+        .setThumbnail(client.user.displayAvatarURL())
         .addFields(
           {
-            name: "/register",
-            value: "Register your server (starts the partnership process)",
-          },
-          {
-            name: "/setchannel",
-            value: "Set the channel for receiving partner ads",
-          },
-          { name: "/unregister", value: "Remove server from partner list" },
-          {
-            name: "/bump",
-            value: "Send your ad to all partners (30-min cooldown)",
-          },
-          { name: "/help", value: "View this help message" },
+            name: "🔹 Important Notice",
+            value: "**WARNING ABOUT /setrole**: When setting up the partner role with `/setrole`, please ensure you select a **staff or admin role** that should have access to partner commands. This role will have special permissions, so choose carefully!"
+          }
         )
-        .addFields({
-          name: "Special Commands",
-          value:
-            "`/setrole` - Set the role required to use commands (Server Owner only)\n`/setstatus` - Change bot status (Bot Owner only)",
-        })
         .setFooter({
-          text: `After registration approval, you'll receive a setup form to configure your server.`,
-          iconURL: client.user.displayAvatarURL(),
-        })
-        .setURL(
-          `${process.env.SITE_URL || `http://0.0.0.0:${process.env.PORT || 3000}`}/docs`,
+          text: `Use /help in a server to see server-specific commands`,
+          iconURL: interaction.guild?.iconURL() || client.user.displayAvatarURL()
+        });
+
+      // Add command sections
+      for (const section of commandSections) {
+        helpEmbed.addFields(
+          { 
+            name: `\n${section.title}`, 
+            value: section.description,
+            inline: false 
+          },
+          ...section.commands.map(cmd => ({
+            name: `• ${cmd.name}`,
+            value: cmd.description,
+            inline: false
+          }))
         );
+      }
+
+      // Add final notes
+      helpEmbed.addFields(
+        {
+          name: "\nNeed More Help?",
+          value: `• Type a command for more details\n• Visit our [Documentation](${process.env.SITE_URL || `http://0.0.0.0:${process.env.PORT || 3000}`}/docs) for guides\n• Contact server staff for assistance`
+        }
+      );
 
       return interaction.reply({ embeds: [helpEmbed], ephemeral: true });
     }
@@ -289,7 +416,28 @@ client.on("interactionCreate", async (interaction) => {
         lastBump: new Date(),
       });
 
-      const row = new ActionRowBuilder().addComponents(
+      // Create an invite link for the server
+      let inviteLink = 'Unable to generate invite link';
+      try {
+        // Try to create an invite in the system channel or first available text channel
+        const channel = interaction.guild.systemChannel || 
+          interaction.guild.channels.cache.find(c => c.type === ChannelType.GuildText && c.permissionsFor(interaction.guild.members.me).has('CREATE_INSTANT_INVITE'));
+        
+        if (channel) {
+          const invite = await channel.createInvite({
+            maxAge: 86400, // 24 hours
+            maxUses: 5,
+            unique: true,
+            reason: 'Server verification for partner application'
+          });
+          inviteLink = invite.url;
+        }
+      } catch (inviteError) {
+        console.error('Error creating invite:', inviteError);
+        inviteLink = 'Error generating invite link';
+      }
+
+      const actionRow1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(`approve_${guildId}`)
           .setLabel("✅ Approve")
@@ -297,33 +445,43 @@ client.on("interactionCreate", async (interaction) => {
         new ButtonBuilder()
           .setCustomId(`decline_${guildId}`)
           .setLabel("❌ Decline")
-          .setStyle(ButtonStyle.Danger),
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      const actionRow2 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setURL(inviteLink)
+          .setLabel("🔗 Join Server")
+          .setStyle(ButtonStyle.Link)
       );
 
       try {
-        const adminGuild = await client.guilds.fetch(
-          process.env.ADMIN_SERVER_ID,
-        );
+        const adminGuild = await client.guilds.fetch(process.env.ADMIN_SERVER_ID);
         if (!adminGuild) {
-          console.error(
-            "Admin guild not found. Check ADMIN_SERVER_ID in the .env file.",
-          );
+          console.error("Admin guild not found. Check ADMIN_SERVER_ID in the .env file.");
           return;
         }
 
-        const adminChannel = await adminGuild.channels.fetch(
-          process.env.ADMIN_CHANNEL_ID,
-        );
+        const adminChannel = await adminGuild.channels.fetch(process.env.ADMIN_CHANNEL_ID);
         if (!adminChannel) {
-          console.error(
-            "Admin channel not found. Check ADMIN_CHANNEL_ID in the .env file.",
-          );
+          console.error("Admin channel not found. Check ADMIN_CHANNEL_ID in the .env file.");
           return;
         }
+
+        const embed = new EmbedBuilder()
+          .setColor('#5865F2')
+          .setTitle('📥 New Partner Registration')
+          .setDescription(`**Server:** ${guildName}\n**ID:** ${guildId}`)
+          .addFields(
+            { name: 'Invite Link', value: inviteLink || 'No invite link generated' },
+            { name: 'Member Count', value: interaction.guild.memberCount.toString() }
+          )
+          .setThumbnail(interaction.guild.iconURL())
+          .setTimestamp();
 
         await adminChannel.send({
-          content: `📥 New registration from **${guildName}** (ID: ${guildId})`,
-          components: [row],
+          embeds: [embed],
+          components: [actionRow1, actionRow2]
         });
         return interaction.reply(
           "✅ Registration submitted. Please wait for approval.",
@@ -442,20 +600,50 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     if (interaction.commandName === "unregister") {
+      // Check if user has admin permissions or the partner role
+      const hasAdmin = interaction.member.permissions.has(PermissionsBitField.Flags.Administrator);
+      const partner = await Partner.findOne({ guildId });
+      
+      // If no partner role is set, only allow server owner to unregister
+      if (!partner?.partnerRoleId) {
+        if (interaction.member.id !== interaction.guild.ownerId) {
+          return interaction.reply({
+            content: "❌ Only the server owner can unregister this server.",
+            ephemeral: true
+          });
+        }
+      } 
+      // If partner role is set, check if user has it or is admin
+      else if (!hasAdmin) {
+        const hasRole = interaction.member.roles.cache.has(partner.partnerRoleId);
+        if (!hasRole) {
+          return interaction.reply({
+            content: `❌ You need the partner role or administrator permissions to unregister this server.`,
+            ephemeral: true
+          });
+        }
+      }
+
+      // If we get here, user has permission to unregister
       await Partner.deleteOne({ guildId });
-      return interaction.reply("🗑️ Server unregistered.");
+      return interaction.reply({
+        content: "🗑️ Server has been unregistered from the partner network.",
+        ephemeral: true
+      });
     }
 
     if (interaction.commandName === "bump") {
       const self = await Partner.findOne({ guildId });
-      if (
-        !self ||
-        !self.approved ||
-        !self.partnerMessage ||
-        !self.partnerChannelId
-      ) {
+      if (!self || !self.approved) {
         return interaction.reply({
-          content: "❌ You must be approved and have message/channel set.",
+          content: "❌ This server is not an approved partner.",
+          ephemeral: true,
+        });
+      }
+      
+      if (!self.partnerMessage || !self.partnerChannelId) {
+        return interaction.reply({
+          content: "❌ The server admin needs to set up the partner message and channel first.",
           ephemeral: true,
         });
       }
@@ -483,13 +671,13 @@ client.on("interactionCreate", async (interaction) => {
           if (channel) {
             const bumpEmbed = new EmbedBuilder()
               .setColor('#5865F2')
-              .setTitle(`📢 Partner Advertisement: ${guildName}`)
-              .setDescription(self.partnerMessage)
+              .setTitle(`📢 Partner Advertisement: ${interaction.guild.name}`)
+              .setDescription(`${self.partnerMessage}${self.inviteLink ? `\n\n🔗 [Join our server](${self.inviteLink})` : ''}`)
               .setTimestamp()
-              .setFooter({ text: 'SkyVPS360 Partner Network' });
+              .setFooter({ text: 'SkyVPS360.xyz Partner Network' });
             
-            if (guild.iconURL()) {
-              bumpEmbed.setThumbnail(guild.iconURL());
+            if (interaction.guild.iconURL()) {
+              bumpEmbed.setThumbnail(interaction.guild.iconURL());
             }
 
             await channel.send({ embeds: [bumpEmbed] });
@@ -639,6 +827,219 @@ client.on("interactionCreate", async (interaction) => {
         return interaction.reply({
           content: "❌ An error occurred while setting the top tier slot.",
           ephemeral: true,
+        });
+      }
+    }
+
+    if (interaction.commandName === "adminunregister") {
+      // Check if the user is the bot owner
+      if (interaction.user.id !== "142025929454125056") { // Replace with your actual user ID
+        return interaction.reply({
+          content: "❌ This command can only be used by the bot owner.",
+          ephemeral: true
+        });
+      }
+
+      const guildId = interaction.options.getString("guildid");
+      
+      try {
+        // Find the partner in the database
+        const partner = await Partner.findOne({ guildId });
+        if (!partner) {
+          return interaction.reply({
+            content: "❌ No partner found with that server ID.",
+            ephemeral: true
+          });
+        }
+
+        // Get the guild name before deleting
+        const guildName = partner.guildName;
+        
+        // Delete from database
+        await Partner.deleteOne({ guildId });
+        
+        // Try to leave the guild
+        try {
+          const guild = await client.guilds.fetch(guildId);
+          if (guild) {
+            await guild.leave();
+            console.log(`Left guild: ${guild.name} (${guildId})`);
+          }
+        } catch (guildError) {
+          console.error(`Error leaving guild ${guildId}:`, guildError);
+          // Continue even if we can't leave the guild
+        }
+
+        // Notify all partners
+        const allPartners = await Partner.find({
+          approved: true,
+          partnerChannelId: { $exists: true, $ne: null }
+        });
+
+        let notifiedCount = 0;
+        const notificationPromises = allPartners.map(async p => {
+          try {
+            const guild = await client.guilds.fetch(p.guildId);
+            if (!guild) return;
+            
+            const channel = await guild.channels.fetch(p.partnerChannelId);
+            if (!channel) return;
+
+            const embed = new EmbedBuilder()
+              .setColor('#FF4444')
+              .setTitle('🚫 Partner Removed')
+              .setDescription(`**${guildName}** has been removed from the partner network.`)
+              .setTimestamp();
+
+            await channel.send({ embeds: [embed] });
+            notifiedCount++;
+          } catch (error) {
+            console.error(`Failed to notify ${p.guildId}:`, error);
+          }
+        });
+
+        await Promise.all(notificationPromises);
+
+        return interaction.reply({
+          content: `✅ Successfully unregistered **${guildName}** (${guildId}). Notified ${notifiedCount} partners.`,
+          ephemeral: true
+        });
+
+      } catch (error) {
+        console.error('Error in adminunregister command:', error);
+        return interaction.reply({
+          content: '❌ An error occurred while processing your request.',
+          ephemeral: true
+        });
+      }
+    }
+
+    // Server Management Commands
+    if (interaction.commandName === "kick") {
+      // Check if the user is the bot owner
+      if (interaction.user.id !== "142025929454125056") {
+        return interaction.reply({
+          content: "❌ This command can only be used by the bot owner.",
+          ephemeral: true
+        });
+      }
+
+      const guildId = interaction.options.getString("guildid");
+      
+      try {
+        const guild = await client.guilds.fetch(guildId);
+        if (!guild) {
+          return interaction.reply({
+            content: "❌ Could not find the specified server.",
+            ephemeral: true
+          });
+        }
+
+        const guildName = guild.name;
+        await guild.leave();
+        
+        return interaction.reply({
+          content: `✅ Successfully left server: **${guildName}** (${guildId})`,
+          ephemeral: true
+        });
+      } catch (error) {
+        console.error('Error in kick command:', error);
+        return interaction.reply({
+          content: `❌ Error leaving server: ${error.message}`,
+          ephemeral: true
+        });
+      }
+    }
+
+    if (interaction.commandName === "ban") {
+      // Check if the user is the bot owner
+      if (interaction.user.id !== "142025929454125056") {
+        return interaction.reply({
+          content: "❌ This command can only be used by the bot owner.",
+          ephemeral: true
+        });
+      }
+
+      const guildId = interaction.options.getString("guildid");
+      const reason = interaction.options.getString("reason") || "No reason provided";
+      
+      try {
+        // Check if already banned
+        const existingBan = await BannedGuild.findOne({ guildId });
+        if (existingBan) {
+          return interaction.reply({
+            content: `❌ Server ${guildId} is already banned.`,
+            ephemeral: true
+          });
+        }
+
+        // Try to get guild info before banning
+        let guildName = guildId;
+        try {
+          const guild = await client.guilds.fetch(guildId);
+          if (guild) {
+            guildName = guild.name;
+            // Leave the guild
+            await guild.leave();
+          }
+        } catch (guildError) {
+          console.log(`Could not fetch guild ${guildId}, but will still ban it:`, guildError);
+        }
+
+        // Add to ban list
+        await BannedGuild.create({
+          guildId,
+          guildName,
+          bannedBy: interaction.user.tag,
+          reason
+        });
+
+        // Remove from partners if exists
+        await Partner.deleteOne({ guildId });
+
+        return interaction.reply({
+          content: `✅ Successfully banned server **${guildName}** (${guildId})`,
+          ephemeral: true
+        });
+      } catch (error) {
+        console.error('Error in ban command:', error);
+        return interaction.reply({
+          content: `❌ Error banning server: ${error.message}`,
+          ephemeral: true
+        });
+      }
+    }
+
+    if (interaction.commandName === "unban") {
+      // Check if the user is the bot owner
+      if (interaction.user.id !== "142025929454125056") {
+        return interaction.reply({
+          content: "❌ This command can only be used by the bot owner.",
+          ephemeral: true
+        });
+      }
+
+      const guildId = interaction.options.getString("guildid");
+      
+      try {
+        const result = await BannedGuild.deleteOne({ guildId });
+        
+        if (result.deletedCount === 0) {
+          return interaction.reply({
+            content: `❌ Server ${guildId} is not currently banned.`,
+            ephemeral: true
+          });
+        }
+
+        return interaction.reply({
+          content: `✅ Successfully unbanned server ${guildId}. They can now invite the bot again.`,
+          ephemeral: true
+        });
+      } catch (error) {
+        console.error('Error in unban command:', error);
+        return interaction.reply({
+          content: `❌ Error unbanning server: ${error.message}`,
+          ephemeral: true
         });
       }
     }
@@ -1131,8 +1532,8 @@ app.get("/", async (req, res) => {
         approved: true,
         partnerMessage: { $exists: true, $ne: null },
       },
-      "guildId guildName partnerMessage inviteLink",
-    );
+      "guildId guildName partnerMessage inviteLink lastBump",
+    ).sort({ lastBump: -1 });
 
     // Generate top tier slot cards
     // Ensure there are always 3 slots
@@ -1147,7 +1548,7 @@ app.get("/", async (req, res) => {
           return `<div class="top-tier-card empty">
           <h3>Premium Slot ${slot.slotNumber}</h3>
           <p>This premium advertising slot is available!</p>
-          <div class="cta-button">Get Your Slot Now</div>
+          <a href="https://skyvps360.xyz/discord" class="cta-button">Get Your Slot Now</a>
         </div>`;
         }
 
@@ -1179,7 +1580,7 @@ app.get("/", async (req, res) => {
           return `<div class="top-tier-card empty">
           <h3>Premium Slot ${slot.slotNumber}</h3>
           <p>This premium advertising slot is available!</p>
-          <div class="cta-button">Get Your Slot Now</div>
+          <a href="https://skyvps360.xyz/discord" class="cta-button">Get Your Slot Now</a>
         </div>`;
         }
       }),
@@ -1269,7 +1670,7 @@ app.get("/", async (req, res) => {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>SkyVPS360 Partner Network</title>
+      <title>SkyVPS360.xyz Partner Network</title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -1442,7 +1843,9 @@ app.get("/", async (req, res) => {
           flex-wrap: wrap;
           gap: 0.75rem;
           justify-content: center;
-          margin-bottom: 1.5rem;
+          margin: 2rem 0 1.5rem 0;
+          padding-top: 1.5rem;
+          border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .stat {
@@ -1461,6 +1864,7 @@ app.get("/", async (req, res) => {
           border-radius: var(--radius);
           font-weight: 600;
           transition: all 0.3s ease;
+          margin-top: auto;
         }
 
         .invite-button:hover {
@@ -1481,7 +1885,8 @@ app.get("/", async (req, res) => {
 
         .top-tier-section {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+          grid-auto-rows: 1fr;
           gap: 2rem;
           margin-bottom: 2rem;
         }
@@ -1495,12 +1900,12 @@ app.get("/", async (req, res) => {
           border: 2px solid var(--accent);
           box-shadow: var(--shadow-lg);
           animation: fadeIn 0.5s ease-out;
-          max-height: 600px;
-          overflow-y: auto;
           display: flex;
           flex-direction: column;
+          justify-content: space-between;
           align-items: center;
           gap: 1rem;
+          height: 100%;
         }
 
         .top-tier-card.empty {
@@ -1589,7 +1994,8 @@ app.get("/", async (req, res) => {
 
         .regular-grid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+          grid-auto-rows: 1fr;
           gap: 2rem;
         }
 
@@ -1623,7 +2029,7 @@ app.get("/", async (req, res) => {
       <div class="navbar">
         <a href="/">Home</a>
         <a href="/docs">Docs</a>
-        <a href="${process.env.DOMAIN}">SkyVPS360 - 256GB KVM VPS $4</a>
+        <a href="${process.env.DOMAIN}">SkyVPS360.xyz - KVMM VPS $3 Ryzen Epyc</a>
         <a href="${getBotInviteUrl()}">Invite Bot</a>
       </div>
       <div class="container">
@@ -1830,6 +2236,40 @@ app.get("/docs", (req, res) => {
           animation: slideUp 0.5s ease-out;
         }
 
+        .warning-box {
+          background-color: #FFF3CD;
+          border-left: 5px solid #FFC107;
+          padding: 1rem;
+          margin: 1.5rem 0;
+          border-radius: 4px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          animation: pulse 2s infinite;
+        }
+
+        .warning-box h3 {
+          color: #856404;
+          margin-top: 0;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .warning-box p, .warning-box li {
+          color: #856404;
+          margin: 0.5rem 0;
+        }
+
+        .warning-box ul {
+          padding-left: 1.5rem;
+          margin: 0.5rem 0;
+        }
+
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
+          70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+        }
+
         @keyframes slideUp {
           from {
             opacity: 0;
@@ -1888,17 +2328,43 @@ app.get("/docs", (req, res) => {
                 </ul>
               </li>
               <li><strong>/setchannel</strong> – Set the channel for receiving partner advertisements</li>
-              <li><strong>/bump</strong> – Send your advertisement to all partner servers (30-minute cooldown)</li>
-              <li><strong>/unregister</strong> – Remove your server from the partner network</li>
+              <li><strong>/bump</strong> – Send your advertisement to all partner servers (30-minute cooldown, available to all server members)</li>
               <li><strong>/help</strong> – View this help message</li>
             </ul>
           </div>
 
           <div class="section">
-            <h2>Special Commands</h2>
+            <h2>🔐 Important Security Notice</h2>
+            <div class="warning-box">
+              <h3>⚠️ WARNING ABOUT /setrole COMMAND</h3>
+              <p><strong>CRITICAL:</strong> The <code>/setrole</code> command grants significant permissions to the selected role. Please follow these guidelines carefully:</p>
+              <ul>
+                <li>🔒 <strong>ONLY</strong> assign this to a trusted <strong>staff or admin role</strong> in your server</li>
+                <li>🚫 Never assign this to @everyone or public roles</li>
+                <li>👑 Consider creating a dedicated role for partner management if needed</li>
+                <li>⚠️ Misconfiguration could allow unauthorized access to partner features</li>
+              </ul>
+              <p>This command is restricted to server owners only for security reasons.</p>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Server Configuration</h2>
             <ul>
-              <li><strong>/setrole</strong> – Set the role required to use partner commands (Server Owner only)</li>
-              <li><strong>/setstatus</strong> – Change bot status (Bot Owner only)</li>
+              <li><strong>/setrole</strong> – <strong>IMPORTANT:</strong> Set which role can manage partner settings (Server Owner only)
+                <ul>
+                  <li>Choose carefully - this role will have access to partner management features</li>
+                  <li>Recommended: Use an existing admin role or create a dedicated partner manager role</li>
+                </ul>
+              </li>
+              <li><strong>/setchannel</strong> – Designate the channel for receiving partner advertisements</li>
+              <li><strong>/unregister</strong> – Remove your server from the partner network
+                <ul>
+                  <li><strong>Requires:</strong> The partner role (set by /setrole) <strong>OR</strong> Administrator permissions</li>
+                  <li>If no partner role is set, only the server owner can unregister</li>
+                  <li>This action cannot be undone - you'll need to re-register if you change your mind</li>
+                </ul>
+              </li>
             </ul>
           </div>
 
@@ -1914,10 +2380,22 @@ app.get("/docs", (req, res) => {
                   <li>Partner channel for receiving ads</li>
                 </ul>
               </li>
-              <li>Use <code>/setrole</code> to set which role can use partner commands (optional)</li>
-              <li>Start using <code>/bump</code> to share your advertisement!</li>
+              <li>Use <code>/setrole</code> to set which role can use partner commands (Server Owner only - see security notice above)</li>
+              <li>Anyone in your server can use <code>/bump</code> to share your advertisement with all partners!</li>
             </ol>
           </div>
+
+          <div class="section">
+            <h2>Server Management (Bot Owner Only)</h2>
+            <ul>
+              <li><strong>/adminunregister &lt;guildid&gt;</strong> – Remove a server from the partner network</li>
+              <li><strong>/kick &lt;guildid&gt;</strong> – Make the bot leave a server</li>
+              <li><strong>/ban &lt;guildid&gt; [reason]</strong> – Ban a server from using the bot and prevent re-invites</li>
+              <li><strong>/unban &lt;guildid&gt;</strong> – Remove a server from the ban list</li>
+              <li><strong>/setstatus</strong> – Change bot status</li>
+            </ul>
+          </div>
+
         </div>
       </div>
     </body>
@@ -1936,6 +2414,11 @@ client.login(process.env.DISCORD_TOKEN).catch((error) => {
 });
 
 function getBotInviteUrl() {
+  // Check if client.user is available
+  if (!client.user) {
+    console.warn('⚠️ Warning: client.user is not available yet. Bot invite URL cannot be generated.');
+    return '#'; // Return a fallback URL
+  }
   return `https://discord.com/api/oauth2/authorize?client_id=${client.user.id}&permissions=8&scope=bot%20applications.commands`;
 }
 
