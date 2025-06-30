@@ -1,13 +1,15 @@
 {
-  "name": "nodejs",
-  "version": "1.0.0",
-  "description": "SkyVPS360.xyz - Partner Discord Bot",
+  "name": "discord-partner-bot",
+  "version": "2.0.0",
+  "description": "SkyVPS360.xyz - Partner Discord Bot with Modern Web Dashboard",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["discord", "bot", "partnership", "dashboard"],
+  "author": "SkyVPS360.xyz",
   "license": "ISC",
   "dependencies": {
     "@types/node": "^22.13.11",
@@ -15,6 +17,16 @@
     "discord.js": "^14.18.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "mongoose": "^8.13.2"
+    "mongoose": "^8.13.2",
+    "express-session": "^1.18.1",
+    "passport": "^0.7.0",
+    "passport-discord": "^0.1.4",
+    "ejs": "^3.1.10",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.0.0",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
   }
 }
