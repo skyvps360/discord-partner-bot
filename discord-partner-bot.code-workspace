@@ -1,0 +1,11 @@
+{
+  // Workspace file for VS Code
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    // Add any project-specific VS Code settings here
+  }
+} 
