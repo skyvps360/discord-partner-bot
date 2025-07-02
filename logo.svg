@@ -1,0 +1,39 @@
+<svg width="512" height="512" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="partner-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color: #00d4ff;" />
+      <stop offset="100%" style="stop-color: #0099cc;" />
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g style="filter: url(#glow);">
+    <!-- Shape 1: Represents the first partner -->
+    <path 
+      d="M 100,20 
+         C 50,20 30,60 30,100 
+         S 50,180 100,180" 
+      fill="none" 
+      stroke="url(#partner-gradient)" 
+      stroke-width="20" 
+      stroke-linecap="round"
+    />
+    
+    <!-- Shape 2: Represents the second partner, interlocking -->
+    <path 
+      d="M 100,20 
+         C 150,20 170,60 170,100 
+         S 150,180 100,180" 
+      fill="none" 
+      stroke="#ffffff" 
+      stroke-width="20" 
+      stroke-linecap="round"
+    />
+  </g>
+</svg> 
