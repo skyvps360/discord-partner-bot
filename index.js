@@ -1,3 +1,15 @@
+// Add HTML escaping function to prevent XSS attacks
+function escapeHtml(text) {
+if (!text) return "";
+const map = {
+"&": "&amp;",
+"<": "&lt;",
+">": "&gt;",
+""": "&quot;",
+"'": "&#039;"
+};
+return text.toString().replace(/[&<>"']/g, function(m) { return map[m]; });
+}
 // index.js (Fully Updated with Merged Interaction Handlers and /setchannel Fix)
 const {
   Client,
@@ -23,7 +35,27 @@ const { createCanvas } = require('canvas');
 const session = require('express-session');
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
+const csrf = require('csurf');
+const csrf = require("csurf");
+const csrf = require('csurf');
 const MongoStore = require('connect-mongo');
+
+// Add HTML escaping function to prevent XSS attacks
+function escapeHtml(text) {
+  if (!text) return '';
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"':
+
+// Add HTML escaping function to prevent XSS attacks
+function escapeHtml(text) {
+  if (!text) return '';
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>':
 
 /**
  * Returns an object containing the uppercase first character of the input string for use as a letter icon.
@@ -37,6 +69,19 @@ function generateLetterIcon(letter) {
   // Return just the character - we'll handle styling in CSS
   // The color will be controlled by the CSS variables
   return { char };
+}
+
+// HTML escaping function to prevent XSS attacks
+function escapeHtml(text) {
+  if (!text) return "";
+  const map = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#039;"
+  };
+  return text.toString().replace(/[&<>"']/g, function(m) { return map[m]; });
 }
 
 // MongoDB Setup (Removed deprecated options)
@@ -692,7 +737,7 @@ client.on("interactionCreate", async (interaction) => {
             count++;
           }
         } catch (err) {
-          console.log(`❌ Could not bump to ${partner.guildId}`);
+          console.log(`❌ Could not bump to ${escapeHtml(partner.guildId)}`);
         }
       }
       await Partner.findOneAndUpdate({ guildId }, { lastBump: new Date() });
@@ -1165,7 +1210,7 @@ client.on("interactionCreate", async (interaction) => {
 
         console.log("Message approved successfully");
         await interaction.update({
-          content: `✅ Approved message for ${partner.guildName}`,
+          content: `✅ Approved message for ${escapeHtml(partner.guildName)}`,
           components: [],
         });
 
@@ -1190,7 +1235,7 @@ client.on("interactionCreate", async (interaction) => {
                 partner.pendingMessageUserId,
               );
               await user.send(
-                `✅ Your ad message for **${partner.guildName}** has been approved!`,
+                `✅ Your ad message for **${escapeHtml(partner.guildName)}** has been approved!`,
               );
             } catch (dmError) {
               console.log("Could not DM user:", dmError);
@@ -1224,7 +1269,7 @@ client.on("interactionCreate", async (interaction) => {
 
         console.log("Message declined successfully");
         await interaction.update({
-          content: `❌ Declined message for ${partner.guildName}`,
+          content: `❌ Declined message for ${escapeHtml(partner.guildName)}`,
           components: [],
         });
 
@@ -1249,7 +1294,7 @@ client.on("interactionCreate", async (interaction) => {
                 partner.pendingMessageUserId,
               );
               await user.send(
-                `❌ Your ad message for **${partner.guildName}** has been declined. Please submit a new message using \`/setmessage\`.`,
+                `❌ Your ad message for **${escapeHtml(partner.guildName)}** has been declined. Please submit a new message using \`/setmessage\`.`,
               );
             } catch (dmError) {
               console.log("Could not DM user:", dmError);
@@ -1275,7 +1320,7 @@ client.on("interactionCreate", async (interaction) => {
           { approved: true },
         );
         await interaction.update({
-          content: `✅ Approved ${partner.guildName}`,
+          content: `✅ Approved ${escapeHtml(partner.guildName)}`,
           components: [],
         });
 
@@ -1365,7 +1410,7 @@ client.on("interactionCreate", async (interaction) => {
         console.log("Processing server decline");
         await Partner.findOneAndDelete({ guildId: targetId });
         await interaction.update({
-          content: `❌ Declined ${partner.guildName}`,
+          content: `❌ Declined ${escapeHtml(partner.guildName)}`,
           components: [],
         });
 
@@ -1536,11 +1581,48 @@ app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({ mongoUrl: process.env.MONGO_URI })
+  store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  },
+  cookie: {
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+  ,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+  cookie: {
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
 }));
 
 app.use(passport.initialize());
 app.use(passport.session());
+
+// CSRF protection middleware
+const csrfProtection = csrf({ cookie: false });
+app.use('/admin', csrfProtection);
+
+// CSRF protection middleware
+const csrfProtection = csrf({ cookie: false });
+app.use("/admin", csrfProtection);
+
+// CSRF protection middleware
+const csrfProtection = csrf({ cookie: false });
+app.use('/admin', csrfProtection);
+
+// CSRF protection middleware
+const csrfProtection = csrf({ cookie: false });
+app.use("/admin", csrfProtection);
 
 // Middleware for parsing POST request bodies
 app.use(express.json());
@@ -1554,7 +1636,7 @@ app.get('/auth/discord/callback', passport.authenticate('discord', {
   res.redirect('/admin'); // Redirect to admin panel after successful login
 });
 
-app.get('/logout', (req, res) => {
+app.get("/logout", (req, res, next) => {
   req.logout(err => {
     if (err) { return next(err); }
     res.redirect('/');
@@ -1571,9 +1653,11 @@ function ensureAdmin(req, res, next) {
   }
   // If not admin, redirect to login or show an error
   if (req.user) { // User is logged in but not admin
-    res.status(403).send("Access Denied. You are not authorized to view this page. <a href='/logout'>Logout</a>");
+    return 
+    return return return res.status(403).send("Access Denied. You are not authorized to view this page. <a href='/logout'>Logout</a>");
   } else { // User is not logged in
-     res.redirect('/auth/discord');
+    return 
+    return return res.redirect("/auth/discord");
   }
 }
 
@@ -1591,6 +1675,8 @@ app.get("/admin", ensureAdmin, async (req, res) => {
   try {
     const partners = await Partner.find({});
     const bannedGuilds = await BannedGuild.find({});
+    const csrfToken = req.csrfToken();
+    const csrfToken = req.csrfToken();
     // More data fetching can be added here as needed (e.g., top tier slots)
 
     res.send(`
@@ -1643,16 +1729,16 @@ app.get("/admin", ensureAdmin, async (req, res) => {
               <tbody>
                 ${partners.map(partner => `
                   <tr class="${!partner.approved || partner.messagePending ? 'pending-approval' : ''}">
-                    <td>${partner.guildName}</td>
-                    <td>${partner.guildId}</td>
+                    <td>${escapeHtml(partner.guildName)}</td>
+                    <td>${escapeHtml(partner.guildId)}</td>
                     <td>${partner.approved ? 'Approved' : 'Pending Approval'}</td>
-                    <td>${partner.messagePending ? `Yes (Pending: ${partner.pendingMessage ? partner.pendingMessage.substring(0,50)+'...' : 'N/A'})` : 'No'}</td>
+                    <td>${partner.messagePending ? `Yes (Pending: ${partner.pendingMessage ? escapeHtml(escapeHtml(escapeHtml(partner.pendingMessage.substring(0,50))))+'...' : 'N/A'})` : 'No'}</td>
                     <td>
-                      ${!partner.approved ? `<form method="POST" action="/admin/approve_server" style="display:inline;"><input type="hidden" name="guildId" value="${partner.guildId}"><button type="submit" class="action-button approve-btn">Approve Server</button></form>` : ''}
-                      ${partner.messagePending ? `<form method="POST" action="/admin/approve_message" style="display:inline;"><input type="hidden" name="guildId" value="${partner.guildId}"><button type="submit" class="action-button approve-btn">Approve Msg</button></form>` : ''}
-                      ${partner.messagePending ? `<form method="POST" action="/admin/decline_message" style="display:inline;"><input type="hidden" name="guildId" value="${partner.guildId}"><button type="submit" class="action-button decline-btn">Decline Msg</button></form>` : ''}
-                      <form method="POST" action="/admin/unregister_server" style="display:inline;"><input type="hidden" name="guildId" value="${partner.guildId}"><button type="submit" class="action-button decline-btn">Unregister</button></form>
-                      <form method="POST" action="/admin/ban_server" style="display:inline;"><input type="hidden" name="guildId" value="${partner.guildId}"><input type="text" name="reason" placeholder="Ban reason (optional)"><button type="submit" class="action-button ban-btn">Ban</button></form>
+                      ${!partner.approved ? `<form method="POST" action="/admin/approve_server" style="display:inline;"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="guildId" value="${escapeHtml(partner.guildId)}"><button type="submit" class="action-button approve-btn">Approve Server</button></form>` : ''}
+                      ${partner.messagePending ? `<form method="POST" action="/admin/approve_message" style="display:inline;"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="guildId" value="${escapeHtml(partner.guildId)}"><button type="submit" class="action-button approve-btn">Approve Msg</button></form>` : ''}
+                      ${partner.messagePending ? `<form method="POST" action="/admin/decline_message" style="display:inline;"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="guildId" value="${escapeHtml(partner.guildId)}"><button type="submit" class="action-button decline-btn">Decline Msg</button></form>` : ''}
+                      <form method="POST" action="/admin/unregister_server" style="display:inline;"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="guildId" value="${escapeHtml(partner.guildId)}"><button type="submit" class="action-button decline-btn">Unregister</button></form>
+                      <form method="POST" action="/admin/ban_server" style="display:inline;"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="guildId" value="${escapeHtml(partner.guildId)}"><input type="text" name="reason" placeholder="Ban reason (optional)"><button type="submit" class="action-button ban-btn">Ban</button></form>
                     </td>
                   </tr>
                 `).join('')}
@@ -1676,13 +1762,13 @@ app.get("/admin", ensureAdmin, async (req, res) => {
               <tbody>
                 ${bannedGuilds.map(banned => `
                   <tr>
-                    <td>${banned.guildName || 'N/A'}</td>
-                    <td>${banned.guildId}</td>
-                    <td>${banned.reason || 'No reason provided'}</td>
-                    <td>${banned.bannedBy || 'N/A'}</td>
+                    <td>${escapeHtml(banned.guildName || "N/A")}</td>
+                    <td>${escapeHtml(banned.guildId)}</td>
+                    <td>${escapeHtml(banned.reason || "No reason provided")}</td>
+                    <td>${escapeHtml(banned.bannedBy || "N/A")}</td>
                     <td>${new Date(banned.bannedAt).toLocaleString()}</td>
                     <td>
-                      <form method="POST" action="/admin/unban_server" style="display:inline;"><input type="hidden" name="guildId" value="${banned.guildId}"><button type="submit" class="action-button unban-btn">Unban</button></form>
+                      <form method="POST" action="/admin/unban_server" style="display:inline;"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="_csrf" value="${csrfToken}"><input type="hidden" name="guildId" value="${escapeHtml(banned.guildId)}"><button type="submit" class="action-button unban-btn">Unban</button></form>
                     </td>
                   </tr>
                 `).join('')}
@@ -1708,6 +1794,21 @@ app.get("/admin", ensureAdmin, async (req, res) => {
 app.post("/admin/approve_server", ensureAdmin, async (req, res) => {
   try {
     const { guildId } = req.body;
+    
+    // Input validation
+    if (!guildId || typeof guildId !== 'string' || guildId.trim() === ''') {
+      return res.status(400).send('Invalid guild ID provided.');
+    }
+    
+    // Input validation
+    if (!guildId || typeof guildId !== 'string' || guildId.trim() === ') {
+      return res.status(400).send('Invalid guild ID provided.');
+    }
+
+    // Input validation
+    if (!guildId || typeof guildId !== "string" || guildId.trim() === "") {
+      return res.status(400).send("Invalid guild ID provided.");
+    }
     const partner = await Partner.findOneAndUpdate({ guildId }, { approved: true }, { new: true });
     if (partner) {
       // Attempt to notify server/owner (similar to button interaction logic)
@@ -1729,6 +1830,26 @@ app.post("/admin/approve_server", ensureAdmin, async (req, res) => {
 app.post("/admin/approve_message", ensureAdmin, async (req, res) => {
   try {
     const { guildId } = req.body;
+    
+    // Input validation
+    if (!guildId || typeof guildId !== 'string' || guildId.trim() === ''') {
+      return res.status(400).send('Invalid guild ID provided.');
+    }
+    
+    // Input validation
+    if (!guildId || typeof guildId !== 'string' || guildId.trim() === ') {
+      return res.status(400).send('Invalid guild ID provided.');
+    }
+
+    // Input validation
+    if (!guildId || typeof guildId !== "string" || guildId.trim() === "") {
+      return res.status(400).send("Invalid guild ID provided.");
+    }
+
+    // Input validation
+    if (!guildId || typeof guildId !== "string" || guildId.trim() === "") {
+      return res.status(400).send("Invalid guild ID provided.");
+    }
     const partner = await Partner.findOne({ guildId });
     if (partner && partner.pendingMessage) {
       await Partner.findOneAndUpdate(
@@ -1739,7 +1860,7 @@ app.post("/admin/approve_message", ensureAdmin, async (req, res) => {
       if (partner.pendingMessageUserId) {
         try {
           const user = await client.users.fetch(partner.pendingMessageUserId);
-          await user.send(`✅ Your ad message for **${partner.guildName}** has been approved!`);
+          await user.send(`✅ Your ad message for **${escapeHtml(partner.guildName)}** has been approved!`);
         } catch (dmError) {
           console.log("Could not DM user about message approval:", dmError);
         }
@@ -1755,6 +1876,26 @@ app.post("/admin/approve_message", ensureAdmin, async (req, res) => {
 app.post("/admin/decline_message", ensureAdmin, async (req, res) => {
   try {
     const { guildId } = req.body;
+    
+    // Input validation
+    if (!guildId || typeof guildId !== 'string' || guildId.trim() === ''') {
+      return res.status(400).send('Invalid guild ID provided.');
+    }
+    
+    // Input validation
+    if (!guildId || typeof guildId !== 'string' || guildId.trim() === ') {
+      return res.status(400).send('Invalid guild ID provided.');
+    }
+
+    // Input validation
+    if (!guildId || typeof guildId !== "string" || guildId.trim() === "") {
+      return res.status(400).send("Invalid guild ID provided.");
+    }
+
+    // Input validation
+    if (!guildId || typeof guildId !== "string" || guildId.trim() === "") {
+      return res.status(400).send("Invalid guild ID provided.");
+    }
     const partner = await Partner.findOneAndUpdate(
       { guildId },
       { messagePending: false, $unset: { pendingMessage: "" } }
@@ -1762,7 +1903,7 @@ app.post("/admin/decline_message", ensureAdmin, async (req, res) => {
      if (partner && partner.pendingMessageUserId) {
         try {
           const user = await client.users.fetch(partner.pendingMessageUserId);
-          await user.send(`❌ Your ad message for **${partner.guildName}** has been declined.`);
+          await user.send(`❌ Your ad message for **${escapeHtml(partner.guildName)}** has been declined.`);
         } catch (dmError) {
           console.log("Could not DM user about message decline:", dmError);
         }
@@ -1777,6 +1918,26 @@ app.post("/admin/decline_message", ensureAdmin, async (req, res) => {
 app.post("/admin/unregister_server", ensureAdmin, async (req, res) => {
   try {
     const { guildId } = req.body;
+    
+    // Input validation
+    if (!guildId || typeof guildId !== 'string' || guildId.trim() === ''') {
+      return res.status(400).send('Invalid guild ID provided.');
+    }
+    
+    // Input validation
+    if (!guildId || typeof guildId !== 'string' || guildId.trim() === ') {
+      return res.status(400).send('Invalid guild ID provided.');
+    }
+
+    // Input validation
+    if (!guildId || typeof guildId !== "string" || guildId.trim() === "") {
+      return res.status(400).send("Invalid guild ID provided.");
+    }
+
+    // Input validation
+    if (!guildId || typeof guildId !== "string" || guildId.trim() === "") {
+      return res.status(400).send("Invalid guild ID provided.");
+    }
     const partner = await Partner.findOneAndDelete({ guildId });
     if (partner) {
         // Optionally, make the bot leave the server
@@ -1797,11 +1958,39 @@ app.post("/admin/unregister_server", ensureAdmin, async (req, res) => {
 app.post("/admin/ban_server", ensureAdmin, async (req, res) => {
   try {
     const { guildId, reason } = req.body;
+    
+    // Input validation
+    if (!guildId || typeof guildId !== 'string' || guildId.trim() === ''') {
+      return res.status(400).send('Invalid guild ID provided.');
+    }
+    
+    // Validate reason if provided
+    if (reason && (typeof reason !== 'string' || reason.length > 500)) {
+      return res.status(400).send('Ban reason must be a string with maximum 500 characters.');
+    }
+    
+    // Input validation
+    if (!guildId || typeof guildId !== 'string' || guildId.trim() === ') {
+      return res.status(400).send('Invalid guild ID provided.');
+    }
+    
+    // Validate reason if provided
+    if (reason && (typeof reason !== 'string' || reason.length > 500)) {
+      return res.status(400).send('Ban reason must be a string with maximum 500 characters.');
+    }
+
+    // Input validation
+    if (!guildId || typeof guildId !== "string" || guildId.trim() === "") {
+      return res.status(400).send("Invalid guild ID provided.");
+    }
+    if (reason && (typeof reason !== "string" || reason.length > 500)) {
+      return res.status(400).send("Ban reason must be a string with maximum 500 characters.");
+    }
     const existingBan = await BannedGuild.findOne({ guildId });
     if (existingBan) {
         // Update reason if already banned
         existingBan.reason = reason || "No reason provided (updated via admin panel)";
-        existingBan.bannedBy = req.user.username + "#" + req.user.discriminator;
+        existingBan.bannedBy = req.user.global_name || req.user.username || "Unknown User";
         await existingBan.save();
     } else {
         let guildName = guildId;
@@ -1817,7 +2006,7 @@ app.post("/admin/ban_server", ensureAdmin, async (req, res) => {
             guildId,
             guildName,
             reason: reason || "Banned via admin panel",
-            bannedBy: req.user.username + "#" + req.user.discriminator,
+            bannedBy: req.user.global_name || req.user.username || "Unknown User",
         });
     }
     await Partner.deleteOne({ guildId }); // Also remove from partners if they were one
@@ -1831,6 +2020,26 @@ app.post("/admin/ban_server", ensureAdmin, async (req, res) => {
 app.post("/admin/unban_server", ensureAdmin, async (req, res) => {
   try {
     const { guildId } = req.body;
+    
+    // Input validation
+    if (!guildId || typeof guildId !== 'string' || guildId.trim() === ''') {
+      return res.status(400).send('Invalid guild ID provided.');
+    }
+    
+    // Input validation
+    if (!guildId || typeof guildId !== 'string' || guildId.trim() === ') {
+      return res.status(400).send('Invalid guild ID provided.');
+    }
+
+    // Input validation
+    if (!guildId || typeof guildId !== "string" || guildId.trim() === "") {
+      return res.status(400).send("Invalid guild ID provided.");
+    }
+
+    // Input validation
+    if (!guildId || typeof guildId !== "string" || guildId.trim() === "") {
+      return res.status(400).send("Invalid guild ID provided.");
+    }
     await BannedGuild.deleteOne({ guildId });
     res.redirect("/admin#banned-guilds-section");
   } catch (error) {
