@@ -25,7 +25,11 @@ const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const MongoStore = require('connect-mongo');
 
-// Function to generate a letter icon with consistent styling
+/**
+ * Returns an object containing the uppercase first character of the input string for use as a letter icon.
+ * @param {string} letter - The input string from which to extract the first character.
+ * @return {{char: string}} An object with the uppercase character for icon display.
+ */
 function generateLetterIcon(letter) {
   // Take first character and convert to uppercase
   const char = String(letter || '?').charAt(0).toUpperCase();
@@ -1557,7 +1561,10 @@ app.get('/logout', (req, res) => {
   });
 });
 
-// Middleware to check if the user is authenticated and is the admin
+/**
+ * Middleware that restricts access to admin-only routes by verifying the user is authenticated and matches the configured admin user ID.
+ * Redirects unauthenticated users to the Discord login page and denies access to non-admin users.
+ */
 function ensureAdmin(req, res, next) {
   if (req.isAuthenticated && req.isAuthenticated() && req.user && req.user.id === process.env.ADMIN_USER_ID) {
     return next();
