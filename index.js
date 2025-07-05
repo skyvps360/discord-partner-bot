@@ -20,8 +20,16 @@ const express = require("express");
 const mongoose = require("mongoose");
 require("dotenv").config();
 const { createCanvas } = require('canvas');
+const session = require('express-session');
+const passport = require('passport');
+const DiscordStrategy = require('passport-discord').Strategy;
+const MongoStore = require('connect-mongo');
 
-// Function to generate a letter icon with consistent styling
+/**
+ * Returns an object containing the uppercase first character of the input string for use as a letter icon.
+ * @param {string} letter - The input string from which to extract the first character.
+ * @return {{char: string}} An object with the uppercase character for icon display.
+ */
 function generateLetterIcon(letter) {
   // Take first character and convert to uppercase
   const char = String(letter || '?').charAt(0).toUpperCase();
@@ -1511,6 +1519,64 @@ client.on("interactionCreate", async (interaction) => {
 // Express Setup (including the navbar for home and docs pages)
 const app = express();
 
+// Passport setup
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((obj, done) => done(null, obj));
+
+passport.use(new DiscordStrategy({
+  clientID: process.env.DISCORD_CLIENT_ID,
+  clientSecret: process.env.DISCORD_CLIENT_SECRET,
+  callbackURL: `${process.env.SITE_URL || `http://localhost:${process.env.PORT || 4444}`}/auth/discord/callback`,
+  scope: ['identify']
+}, (accessToken, refreshToken, profile, done) => {
+  process.nextTick(() => done(null, profile));
+}));
+
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({ mongoUrl: process.env.MONGO_URI })
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Middleware for parsing POST request bodies
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Auth routes
+app.get('/auth/discord', passport.authenticate('discord'));
+app.get('/auth/discord/callback', passport.authenticate('discord', {
+  failureRedirect: '/'
+}), (req, res) => {
+  res.redirect('/admin'); // Redirect to admin panel after successful login
+});
+
+app.get('/logout', (req, res) => {
+  req.logout(err => {
+    if (err) { return next(err); }
+    res.redirect('/');
+  });
+});
+
+/**
+ * Middleware that restricts access to admin-only routes by verifying the user is authenticated and matches the configured admin user ID.
+ * Redirects unauthenticated users to the Discord login page and denies access to non-admin users.
+ */
+function ensureAdmin(req, res, next) {
+  if (req.isAuthenticated && req.isAuthenticated() && req.user && req.user.id === process.env.ADMIN_USER_ID) {
+    return next();
+  }
+  // If not admin, redirect to login or show an error
+  if (req.user) { // User is logged in but not admin
+    res.status(403).send("Access Denied. You are not authorized to view this page. <a href='/logout'>Logout</a>");
+  } else { // User is not logged in
+     res.redirect('/auth/discord');
+  }
+}
+
 // Wait for database connection
 mongoose.connection.once("open", () => {
   console.log("✅ MongoDB connected successfully");
@@ -1519,6 +1585,260 @@ mongoose.connection.once("open", () => {
 mongoose.connection.on("error", (err) => {
   console.error("❌ MongoDB connection error:", err);
 });
+
+// Admin panel route
+app.get("/admin", ensureAdmin, async (req, res) => {
+  try {
+    const partners = await Partner.find({});
+    const bannedGuilds = await BannedGuild.find({});
+    // More data fetching can be added here as needed (e.g., top tier slots)
+
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Admin Panel - Partner Bot</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; }
+          .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+          h1, h2 { color: #333; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; }
+          .action-button { padding: 5px 10px; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; margin-right: 5px; }
+          .approve-btn { background-color: #4CAF50; } /* Green */
+          .decline-btn { background-color: #f44336; } /* Red */
+          .manage-btn { background-color: #008CBA; } /* Blue */
+          .ban-btn { background-color: #555; } /* Dark Grey */
+          .unban-btn { background-color: #777; } /* Grey */
+          .logout-btn { background-color: #f44336; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; display: inline-block; margin-bottom:20px;}
+          .nav { margin-bottom: 20px; }
+          .nav a { margin-right: 15px; text-decoration: none; color: #007bff; }
+          .nav a.logout-btn { color: white; }
+          .pending-approval { background-color: #ffffe0; } /* Light yellow for pending items */
+          .section { margin-bottom: 30px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="nav">
+            <h1>Admin Panel</h1>
+            <a href="/logout" class="logout-btn">Logout</a>
+          </div>
+
+          <div class="section" id="partners-section">
+            <h2>Partner Management</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Server Name</th>
+                  <th>Guild ID</th>
+                  <th>Status</th>
+                  <th>Message Pending</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${partners.map(partner => `
+                  <tr class="${!partner.approved || partner.messagePending ? 'pending-approval' : ''}">
+                    <td>${partner.guildName}</td>
+                    <td>${partner.guildId}</td>
+                    <td>${partner.approved ? 'Approved' : 'Pending Approval'}</td>
+                    <td>${partner.messagePending ? `Yes (Pending: ${partner.pendingMessage ? partner.pendingMessage.substring(0,50)+'...' : 'N/A'})` : 'No'}</td>
+                    <td>
+                      ${!partner.approved ? `<form method="POST" action="/admin/approve_server" style="display:inline;"><input type="hidden" name="guildId" value="${partner.guildId}"><button type="submit" class="action-button approve-btn">Approve Server</button></form>` : ''}
+                      ${partner.messagePending ? `<form method="POST" action="/admin/approve_message" style="display:inline;"><input type="hidden" name="guildId" value="${partner.guildId}"><button type="submit" class="action-button approve-btn">Approve Msg</button></form>` : ''}
+                      ${partner.messagePending ? `<form method="POST" action="/admin/decline_message" style="display:inline;"><input type="hidden" name="guildId" value="${partner.guildId}"><button type="submit" class="action-button decline-btn">Decline Msg</button></form>` : ''}
+                      <form method="POST" action="/admin/unregister_server" style="display:inline;"><input type="hidden" name="guildId" value="${partner.guildId}"><button type="submit" class="action-button decline-btn">Unregister</button></form>
+                      <form method="POST" action="/admin/ban_server" style="display:inline;"><input type="hidden" name="guildId" value="${partner.guildId}"><input type="text" name="reason" placeholder="Ban reason (optional)"><button type="submit" class="action-button ban-btn">Ban</button></form>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="section" id="banned-guilds-section">
+            <h2>Banned Guilds</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Server Name</th>
+                  <th>Guild ID</th>
+                  <th>Reason</th>
+                  <th>Banned By</th>
+                  <th>Banned At</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${bannedGuilds.map(banned => `
+                  <tr>
+                    <td>${banned.guildName || 'N/A'}</td>
+                    <td>${banned.guildId}</td>
+                    <td>${banned.reason || 'No reason provided'}</td>
+                    <td>${banned.bannedBy || 'N/A'}</td>
+                    <td>${new Date(banned.bannedAt).toLocaleString()}</td>
+                    <td>
+                      <form method="POST" action="/admin/unban_server" style="display:inline;"><input type="hidden" name="guildId" value="${banned.guildId}"><button type="submit" class="action-button unban-btn">Unban</button></form>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          </div>
+        </div>
+        <script>
+          // Basic client-side interactions can be added here if needed
+        </script>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error("❌ Error in the `/admin` route:", error);
+    res.status(500).send("❌ An error occurred while loading the admin panel.");
+  }
+});
+
+// Admin panel action routes
+app.post("/admin/approve_server", ensureAdmin, async (req, res) => {
+  try {
+    const { guildId } = req.body;
+    const partner = await Partner.findOneAndUpdate({ guildId }, { approved: true }, { new: true });
+    if (partner) {
+      // Attempt to notify server/owner (similar to button interaction logic)
+      try {
+        const guild = await client.guilds.fetch(guildId);
+        const owner = await guild.members.fetch(guild.ownerId);
+         await owner.send(`✅ Your server **${guild.name}** has been approved for partnering! Please use bot commands to set up your ad message and channel.`);
+      } catch (notifyError) {
+        console.error(`Failed to notify owner of ${guildId} about approval:`, notifyError);
+      }
+    }
+    res.redirect("/admin#partners-section");
+  } catch (error) {
+    console.error("Error approving server:", error);
+    res.status(500).send("Error approving server.");
+  }
+});
+
+app.post("/admin/approve_message", ensureAdmin, async (req, res) => {
+  try {
+    const { guildId } = req.body;
+    const partner = await Partner.findOne({ guildId });
+    if (partner && partner.pendingMessage) {
+      await Partner.findOneAndUpdate(
+        { guildId },
+        { partnerMessage: partner.pendingMessage, messagePending: false, $unset: { pendingMessage: "" } }
+      );
+      // Notify user if possible
+      if (partner.pendingMessageUserId) {
+        try {
+          const user = await client.users.fetch(partner.pendingMessageUserId);
+          await user.send(`✅ Your ad message for **${partner.guildName}** has been approved!`);
+        } catch (dmError) {
+          console.log("Could not DM user about message approval:", dmError);
+        }
+      }
+    }
+    res.redirect("/admin#partners-section");
+  } catch (error) {
+    console.error("Error approving message:", error);
+    res.status(500).send("Error approving message.");
+  }
+});
+
+app.post("/admin/decline_message", ensureAdmin, async (req, res) => {
+  try {
+    const { guildId } = req.body;
+    const partner = await Partner.findOneAndUpdate(
+      { guildId },
+      { messagePending: false, $unset: { pendingMessage: "" } }
+    );
+     if (partner && partner.pendingMessageUserId) {
+        try {
+          const user = await client.users.fetch(partner.pendingMessageUserId);
+          await user.send(`❌ Your ad message for **${partner.guildName}** has been declined.`);
+        } catch (dmError) {
+          console.log("Could not DM user about message decline:", dmError);
+        }
+      }
+    res.redirect("/admin#partners-section");
+  } catch (error) {
+    console.error("Error declining message:", error);
+    res.status(500).send("Error declining message.");
+  }
+});
+
+app.post("/admin/unregister_server", ensureAdmin, async (req, res) => {
+  try {
+    const { guildId } = req.body;
+    const partner = await Partner.findOneAndDelete({ guildId });
+    if (partner) {
+        // Optionally, make the bot leave the server
+        try {
+            const guild = await client.guilds.fetch(guildId);
+            if (guild) await guild.leave();
+        } catch (leaveError) {
+            console.error(`Error making bot leave ${guildId} after unregister:`, leaveError);
+        }
+    }
+    res.redirect("/admin#partners-section");
+  } catch (error) {
+    console.error("Error unregistering server:", error);
+    res.status(500).send("Error unregistering server.");
+  }
+});
+
+app.post("/admin/ban_server", ensureAdmin, async (req, res) => {
+  try {
+    const { guildId, reason } = req.body;
+    const existingBan = await BannedGuild.findOne({ guildId });
+    if (existingBan) {
+        // Update reason if already banned
+        existingBan.reason = reason || "No reason provided (updated via admin panel)";
+        existingBan.bannedBy = req.user.username + "#" + req.user.discriminator;
+        await existingBan.save();
+    } else {
+        let guildName = guildId;
+        try {
+            const guild = await client.guilds.fetch(guildId);
+            if (guild) {
+                guildName = guild.name;
+                await guild.leave();
+            }
+        } catch (e) { console.log(`Couldn't fetch guild ${guildId} for banning, or already left.`); }
+
+        await BannedGuild.create({
+            guildId,
+            guildName,
+            reason: reason || "Banned via admin panel",
+            bannedBy: req.user.username + "#" + req.user.discriminator,
+        });
+    }
+    await Partner.deleteOne({ guildId }); // Also remove from partners if they were one
+    res.redirect("/admin#banned-guilds-section");
+  } catch (error) {
+    console.error("Error banning server:", error);
+    res.status(500).send("Error banning server.");
+  }
+});
+
+app.post("/admin/unban_server", ensureAdmin, async (req, res) => {
+  try {
+    const { guildId } = req.body;
+    await BannedGuild.deleteOne({ guildId });
+    res.redirect("/admin#banned-guilds-section");
+  } catch (error) {
+    console.error("Error unbanning server:", error);
+    res.status(500).send("Error unbanning server.");
+  }
+});
+
 
 // Add error handling for the `/` route
 app.get("/", async (req, res) => {

@@ -22,11 +22,25 @@ MONGO_URI=mongodb://mongo:27017/discord_bot
 # Admin Configuration
 ADMIN_SERVER_ID=your_admin_server_id
 ADMIN_CHANNEL_ID=your_admin_channel_id
+ADMIN_USER_ID=your_discord_user_id_for_admin_panel_access
 
 # Web Server Configuration
 PORT=4444
-NODE_ENV=production
+SITE_URL=http://yourdomain.com # Important: Base URL for OAuth2 callback and other links (e.g., http://localhost:4444 for local dev)
+SESSION_SECRET=a_very_strong_and_random_secret_key # Change this for production
+
+# Discord OAuth2 for Admin Panel Login
+DISCORD_CLIENT_ID=your_discord_app_client_id
+DISCORD_CLIENT_SECRET=your_discord_app_client_secret
 ```
+
+### Admin Panel Setup Notes:
+- To use the web admin panel, you'll need to create a Discord Application at the [Discord Developer Portal](https://discord.com/developers/applications).
+- Once created, find your `CLIENT_ID` and `CLIENT_SECRET` on the "OAuth2" page of your application settings.
+- Add a Redirect URI to your Discord Application's OAuth2 settings: `YOUR_SITE_URL/auth/discord/callback` (e.g., `http://localhost:4444/auth/discord/callback` if running locally with `SITE_URL` set accordingly).
+- `ADMIN_USER_ID` should be your own Discord User ID. You can get this by enabling Developer Mode in Discord (User Settings > Advanced) and then right-clicking your username and selecting "Copy ID".
+- `SITE_URL` must be correctly set for the OAuth2 callback to work. If deploying, this should be your public-facing URL.
+- `SESSION_SECRET` should be a long, random string for security.
 
 ## Deployment Options
 
@@ -115,6 +129,14 @@ View logs: `pm2 logs my-app`
 ### Administrative Commands
 - `/setrole` - Set the role required to use partner commands (Server Owner only)
 - `/setstatus` - Change the bot's status message (Bot Owner only)
+
+### Web Admin Panel
+- Access: `/admin` (requires login via Discord; access restricted to `ADMIN_USER_ID` set in `.env`)
+- Features:
+    - View and manage partner servers (approve, unregister, ban).
+    - Approve or decline pending partner messages.
+    - View and manage banned guilds (unban).
+    - Logout functionality.
 
 ## Permissions
 - Server owners can set a partner role that allows members to use partnership commands
