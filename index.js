@@ -276,7 +276,7 @@ client.on("interactionCreate", async (interaction) => {
     // Special handling for setstatus command
     if (
       interaction.commandName === "setstatus" &&
-      member.user.id !== "142025929454125056"
+      !isBotOwner(member.user.id)
     ) {
       return interaction.reply({
         content: "🚫 Only the bot owner can use this command.",
@@ -733,7 +733,7 @@ client.on("interactionCreate", async (interaction) => {
       );
 
       // Check if the user is the bot owner
-      if (interaction.user.id !== "142025929454125056") {
+      if (!isBotOwner(interaction.user.id)) {
         console.log("Unauthorized user attempted to use /setstatus");
         return interaction.reply({
           content: "❌ You are not authorized to use this command.",
@@ -793,7 +793,7 @@ client.on("interactionCreate", async (interaction) => {
 
     // Top tier slot commands
     if (interaction.commandName === "settopslot") {
-      if (interaction.user.id !== "142025929454125056") {
+      if (!isBotOwner(interaction.user.id)) {
         return interaction.reply({
           content: "❌ Only the bot owner can manage top tier slots.",
           ephemeral: true,
@@ -841,7 +841,7 @@ client.on("interactionCreate", async (interaction) => {
 
     if (interaction.commandName === "adminunregister") {
       // Check if the user is the bot owner
-      if (interaction.user.id !== "142025929454125056") { // Replace with your actual user ID
+      if (!isBotOwner(interaction.user.id)) { // Replace with your actual user ID
         return interaction.reply({
           content: "❌ This command can only be used by the bot owner.",
           ephemeral: true
@@ -925,7 +925,7 @@ client.on("interactionCreate", async (interaction) => {
     // Server Management Commands
     if (interaction.commandName === "kick") {
       // Check if the user is the bot owner
-      if (interaction.user.id !== "142025929454125056") {
+      if (!isBotOwner(interaction.user.id)) {
         return interaction.reply({
           content: "❌ This command can only be used by the bot owner.",
           ephemeral: true
@@ -961,7 +961,7 @@ client.on("interactionCreate", async (interaction) => {
 
     if (interaction.commandName === "ban") {
       // Check if the user is the bot owner
-      if (interaction.user.id !== "142025929454125056") {
+      if (!isBotOwner(interaction.user.id)) {
         return interaction.reply({
           content: "❌ This command can only be used by the bot owner.",
           ephemeral: true
@@ -1020,7 +1020,7 @@ client.on("interactionCreate", async (interaction) => {
 
     if (interaction.commandName === "unban") {
       // Check if the user is the bot owner
-      if (interaction.user.id !== "142025929454125056") {
+      if (!isBotOwner(interaction.user.id)) {
         return interaction.reply({
           content: "❌ This command can only be used by the bot owner.",
           ephemeral: true
@@ -1053,7 +1053,7 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     if (interaction.commandName === "removetopslot") {
-      if (interaction.user.id !== "142025929454125056") {
+      if (!isBotOwner(interaction.user.id)) {
         return interaction.reply({
           content: "❌ Only the bot owner can manage top tier slots.",
           ephemeral: true,
@@ -1554,7 +1554,7 @@ app.get('/auth/discord/callback', passport.authenticate('discord', {
   res.redirect('/admin'); // Redirect to admin panel after successful login
 });
 
-app.get('/logout', (req, res) => {
+app.get('/logout', (req, res, next) => {
   req.logout(err => {
     if (err) { return next(err); }
     res.redirect('/');
@@ -3245,6 +3245,10 @@ app.get("/docs", (req, res) => {
 });
 
 const PORT = process.env.PORT || 4444;
+app.use((err, req, res, next) => {
+  console.error("Express error:", err);
+  res.status(err.status || 500).send(err.message || "Internal Server Error");
+});
 app.listen(PORT, () =>
   console.log(`🌐 Web dashboard running on http://localhost:${PORT}`),
 );
@@ -3260,13 +3264,21 @@ function getBotInviteUrl() {
     console.warn('⚠️ Warning: client.user is not available yet. Bot invite URL cannot be generated.');
     return '#'; // Return a fallback URL
   }
-  return `https://discord.com/api/oauth2/authorize?client_id=${client.user.id}&permissions=8&scope=bot%20applications.commands`;
+  // Minimal permission set (268463126833316864) instead of Administrator (8):
+  // includes Manage Server, Manage Channels, Manage Roles, Kick/Ban Members,
+  // Send Messages, Embed Links, Read Message History, Use Slash Commands, etc.
+  return `https://discord.com/api/oauth2/authorize?client_id=${client.user.id}&permissions=268463126833316864&scope=bot%20applications.commands`;
+}
+
+function isBotOwner(userId) {
+  const owners = (process.env.BOT_OWNER_IDS || "").split(",").map((id) => id.trim()).filter(Boolean);
+  return owners.includes(userId);
 }
 
 // Add this before the interaction handler
 async function hasPermission(member, guildId) {
   // Owner override for status command
-  if (member.user.id === "142025929454125056") {
+  if (isBotOwner(member.user.id)) {
     return true;
   }
 
